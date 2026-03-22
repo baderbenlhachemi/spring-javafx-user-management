@@ -240,7 +240,7 @@ Access the API documentation at: http://localhost:9090/swagger-ui/index.html
 
 ```
 SpringBoot-JWT-UserManagement/
-├── src/main/java/com/cirestechnologies/demo/
+├── src/main/java/com/badereddine/demo/
 │   ├── controller/       # REST controllers
 │   ├── model/            # Entity classes
 │   ├── repository/       # Data repositories

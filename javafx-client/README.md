@@ -152,7 +152,7 @@ cd javafx-client && ..\mvnw.cmd javafx:run
 javafx-client/
 ├── src/main/java/
 │   ├── module-info.java
-│   └── com/cirestechnologies/client/
+│   └── com/badereddine/client/
 │       ├── JwtUserManagementApp.java          # Main application entry
 │       ├── controller/
 │       │   ├── LoginController.java           # Login screen controller

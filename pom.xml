@@ -8,7 +8,7 @@
         <version>3.2.4</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.cirestechnologies</groupId>
+    <groupId>com.badereddine</groupId>
     <artifactId>SpringBoot-JWT-UserManagement</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>SpringBoot-JWT-UserManagement</name>
