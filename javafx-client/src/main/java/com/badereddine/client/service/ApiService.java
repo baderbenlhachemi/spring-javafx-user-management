@@ -59,13 +59,9 @@ public class ApiService {
 
                 try (Response response = client.newCall(request).execute()) {
                     String responseBody = response.body() != null ? response.body().string() : "";
-                    System.out.println("Auth response: " + responseBody);
 
                     if (response.isSuccessful()) {
                         AuthResponse authResponse = gson.fromJson(responseBody, AuthResponse.class);
-                        System.out.println("Parsed token: " + (authResponse.getToken() != null ? "present" : "null"));
-                        System.out.println("Parsed type: " + authResponse.getType());
-                        System.out.println("Auth header will be: " + authResponse.getAuthorizationHeader());
                         return ApiResult.success(authResponse);
                     } else {
                         return ApiResult.error("Authentication failed: " + getErrorMessage(responseBody, response.code()));
@@ -181,8 +177,6 @@ public class ApiService {
     public CompletableFuture<ApiResult<User>> getMyProfile(String token) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("Getting profile with Authorization: " + token);
-
                 Request request = new Request.Builder()
                         .url(BASE_URL + "/users/me")
                         .header("Authorization", token)
@@ -191,8 +185,6 @@ public class ApiService {
 
                 try (Response response = client.newCall(request).execute()) {
                     String responseBody = response.body() != null ? response.body().string() : "";
-                    System.out.println("Profile response code: " + response.code());
-                    System.out.println("Profile response: " + responseBody);
 
                     if (response.isSuccessful()) {
                         User user = gson.fromJson(responseBody, User.class);
