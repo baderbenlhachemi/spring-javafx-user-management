@@ -39,15 +39,26 @@ A default admin user is automatically created when the application starts:
 
 ### Running the Application
 
-1. **Start the Spring Boot backend:**
+1. **Set the required backend environment variables:**
+
+   ```powershell
+   $env:DB_URL = "jdbc:postgresql://localhost:5432/team_access_hub"
+   $env:DB_USERNAME = "<database-username>"
+   $env:DB_PASSWORD = "<database-password>"
+   $env:JWT_SECRET = "<base64-encoded-256-bit-key>"
+   ```
+
+   `JWT_EXPIRATION_MS` is optional and defaults to `86400000`. The committed `.env.example` is a reference only; Spring Boot does not automatically load `.env` files. Keep local values in your shell, IDE run configuration, or another ignored secret store.
+
+2. **Start the Spring Boot backend:**
    ```bash
    .\mvnw.cmd spring-boot:run
    ```
 
-2. **Open the JavaFX client** (recommended) or use Swagger UI:
+3. **Open the JavaFX client** (recommended) or use Swagger UI:
    - Swagger UI: http://localhost:9090/swagger-ui/index.html
 
-3. **Login with:**
+4. **Login with:**
    - Username: `admin`
    - Password: `admin`
 
@@ -231,7 +242,9 @@ Or simply run `javafx-client\run.bat` on Windows.
 
 ## 🔧 Configuration
 
-The application runs on port `9090` by default. Configuration can be modified in `src/main/resources/application.properties`.
+The application runs on port `9090` by default. Database credentials and JWT signing material are not stored in source control. Startup requires `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and a Base64-encoded JWT key of at least 256 bits in `JWT_SECRET`. Missing required values cause startup to fail with the missing environment-variable name.
+
+`JWT_EXPIRATION_MS` is optional and defaults to 24 hours. See `.env.example` for variable names and safe placeholders; never put real values in that tracked example file.
 
 ### Swagger UI
 Access the API documentation at: http://localhost:9090/swagger-ui/index.html

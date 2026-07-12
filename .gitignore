@@ -33,3 +33,8 @@ build/
 .vscode/
 /docs/
 /AGENTS.md
+
+### Local environment configuration ###
+.env
+.env.*
+!.env.example

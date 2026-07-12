@@ -31,6 +31,9 @@ class DemoApplicationTests {
     @Test
     void contextLoadsWithTestProfileAndContainerDatabase() throws SQLException {
         assertThat(environment.getActiveProfiles()).contains("test");
+        assertThat(environment.getRequiredProperty("demo.jwtSecret"))
+                .isNotBlank()
+                .doesNotContain("${");
 
         try (Connection connection = dataSource.getConnection()) {
             assertThat(connection.getMetaData().getURL())
