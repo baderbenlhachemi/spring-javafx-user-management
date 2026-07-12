@@ -1,6 +1,7 @@
 package com.badereddine.demo.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
@@ -60,6 +61,7 @@ public class User {
 
     @NotBlank
     @Size(min = 6, max = 120)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @ManyToOne(fetch = FetchType.LAZY)
