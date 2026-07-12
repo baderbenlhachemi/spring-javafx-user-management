@@ -1,8 +1,14 @@
 HELP.md
-target/
+/target/
+**/target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+
+### Generated user exports ###
+users.json
+new_users.json
+users_export.csv
 
 ### STS ###
 .apt_generated
