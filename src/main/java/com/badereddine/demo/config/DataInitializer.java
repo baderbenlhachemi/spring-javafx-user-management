@@ -5,19 +5,24 @@ import com.badereddine.demo.model.Role;
 import com.badereddine.demo.model.User;
 import com.badereddine.demo.repository.RoleRepository;
 import com.badereddine.demo.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
 
 /**
- * Data initializer that creates default admin user and roles on application startup.
- * This ensures users can login immediately without needing to make API calls first.
+ * Initializes required roles and optionally creates a development administrator.
  */
 @Component
 public class DataInitializer implements CommandLineRunner {
+    private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -28,31 +33,36 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private Environment environment;
+
+    @Value("${demo.initializer.admin.username:}")
+    private String adminUsername;
+
+    @Value("${demo.initializer.admin.password:}")
+    private String adminPassword;
+
+    @Value("${demo.initializer.admin.email:}")
+    private String adminEmail;
+
     @Override
     public void run(String... args) {
-        System.out.println("=== Initializing default data ===");
-
-        // Create roles if they don't exist
         Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
-                .orElseGet(() -> {
-                    System.out.println("Creating ROLE_ADMIN...");
-                    return roleRepository.save(new Role(ERole.ROLE_ADMIN));
-                });
+                .orElseGet(() -> roleRepository.save(new Role(ERole.ROLE_ADMIN)));
 
-        // Ensure ROLE_USER exists as well
         if (roleRepository.findByName(ERole.ROLE_USER).isEmpty()) {
-            System.out.println("Creating ROLE_USER...");
             roleRepository.save(new Role(ERole.ROLE_USER));
         }
 
-        // Create default admin user if it doesn't exist
-        if (!userRepository.existsByUsername("admin")) {
-            System.out.println("Creating default admin user...");
+        if (!environment.acceptsProfiles(Profiles.of("dev"))) {
+            return;
+        }
 
+        if (!userRepository.existsByUsername(adminUsername)) {
             User admin = new User();
-            admin.setUsername("admin");
-            admin.setEmail("admin@localhost.com");
-            admin.setPassword(passwordEncoder.encode("admin"));
+            admin.setUsername(adminUsername);
+            admin.setEmail(adminEmail);
+            admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setFirstName("System");
             admin.setLastName("Administrator");
             admin.setBirthDate(new Date());
@@ -65,13 +75,7 @@ public class DataInitializer implements CommandLineRunner {
             admin.setRole(adminRole);
 
             userRepository.save(admin);
-            System.out.println("✓ Default admin user created successfully!");
-            System.out.println("  Username: admin");
-            System.out.println("  Password: admin");
-        } else {
-            System.out.println("Default admin user already exists.");
+            logger.info("Development administrator initialized");
         }
-
-        System.out.println("=== Data initialization complete ===");
     }
 }

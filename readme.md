@@ -26,16 +26,9 @@ A comprehensive user management application built with `Spring Boot` and `Spring
 
 ## 🚀 Quick Start
 
-### Default Admin Credentials
+### Development Administrator
 
-A default admin user is automatically created when the application starts:
-
-| Field | Value |
-|-------|-------|
-| **Username** | `admin` |
-| **Password** | `admin` |
-| **Email** | `admin@localhost.com` |
-| **Role** | Administrator |
+The default profile does not create an administrator. Development-only initialization is opt-in through the `dev` profile, and its username, password, and email must be supplied externally.
 
 ### Running the Application
 
@@ -46,6 +39,12 @@ A default admin user is automatically created when the application starts:
    $env:DB_USERNAME = "<database-username>"
    $env:DB_PASSWORD = "<database-password>"
    $env:JWT_SECRET = "<base64-encoded-256-bit-key>"
+
+   # Optional development-only administrator
+   $env:SPRING_PROFILES_ACTIVE = "dev"
+   $env:DEMO_ADMIN_USERNAME = "<development-admin-username>"
+   $env:DEMO_ADMIN_PASSWORD = "<development-admin-password>"
+   $env:DEMO_ADMIN_EMAIL = "<development-admin-email>"
    ```
 
    `JWT_EXPIRATION_MS` is optional and defaults to `86400000`. The committed `.env.example` is a reference only; Spring Boot does not automatically load `.env` files. Keep local values in your shell, IDE run configuration, or another ignored secret store.
@@ -58,9 +57,7 @@ A default admin user is automatically created when the application starts:
 3. **Open the JavaFX client** (recommended) or use Swagger UI:
    - Swagger UI: http://localhost:9090/swagger-ui/index.html
 
-4. **Login with:**
-   - Username: `admin`
-   - Password: `admin`
+4. **Login with the development administrator values you supplied**, if the `dev` profile is active.
 
 ## 🖥️ JavaFX Client Application
 
