@@ -12,6 +12,9 @@ import com.badereddine.demo.payload.request.ProfileUpdateRequest;
 import com.badereddine.demo.payload.request.SignupRequest;
 import com.badereddine.demo.payload.response.JwtResponse;
 import com.badereddine.demo.payload.response.MessageResponse;
+import com.badereddine.demo.payload.response.UserListResponse;
+import com.badereddine.demo.payload.response.UserResponse;
+import com.badereddine.demo.payload.response.UserResponseMapper;
 import com.badereddine.demo.security.jwt.JwtUtils;
 import com.badereddine.demo.security.services.UserDetailsImpl;
 import com.badereddine.demo.service.FakeDataService;
@@ -68,6 +71,9 @@ public class UserController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private UserResponseMapper userResponseMapper;
 
     @GetMapping("/users/generate/{count}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -200,7 +206,7 @@ public class UserController {
 
     @GetMapping("/users/me")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<?> getMyProfile() throws UserNotFoundException {
+    public ResponseEntity<UserResponse> getMyProfile() throws UserNotFoundException {
         // Fetch the user details from the SecurityContext
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -211,7 +217,7 @@ public class UserController {
         User user = userService.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new UserNotFoundException("User not found!"));
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(userResponseMapper.toResponse(user));
     }
 
     @GetMapping("/users/{username}")
@@ -340,7 +346,7 @@ public class UserController {
 
         userService.save(user);
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(userResponseMapper.toResponse(user));
     }
 
     /**
@@ -348,7 +354,7 @@ public class UserController {
      */
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> getAllUsers(
+    public ResponseEntity<UserListResponse> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "username") String sortBy,
@@ -368,14 +374,17 @@ public class UserController {
             usersPage = userService.findAll(pageable);
         }
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("users", usersPage.getContent());
-        response.put("currentPage", usersPage.getNumber());
-        response.put("totalItems", usersPage.getTotalElements());
-        response.put("totalPages", usersPage.getTotalPages());
-        response.put("size", usersPage.getSize());
+        List<UserResponse> users = usersPage.stream()
+                .map(userResponseMapper::toResponse)
+                .toList();
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(new UserListResponse(
+                users,
+                usersPage.getNumber(),
+                usersPage.getTotalElements(),
+                usersPage.getTotalPages(),
+                usersPage.getSize()
+        ));
     }
 
     /**
@@ -383,10 +392,10 @@ public class UserController {
      */
     @GetMapping("/users/id/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> getUserById(@PathVariable Long id) throws UserNotFoundException {
+    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) throws UserNotFoundException {
         User user = userService.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(userResponseMapper.toResponse(user));
     }
 
     /**
@@ -432,7 +441,7 @@ public class UserController {
         if (request.getAvatar() != null) user.setAvatar(request.getAvatar());
 
         userService.save(user);
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(userResponseMapper.toResponse(user));
     }
 
     /**
