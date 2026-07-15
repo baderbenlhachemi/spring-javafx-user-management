@@ -8,9 +8,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$isWindows = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
 
 if ([string]::IsNullOrWhiteSpace($MavenWrapperPath)) {
-    $MavenWrapperPath = Join-Path $repositoryRoot "mvnw.cmd"
+    $wrapperName = if ($isWindows) { "mvnw.cmd" } else { "mvnw" }
+    $MavenWrapperPath = Join-Path $repositoryRoot $wrapperName
 }
 
 if (-not (Test-Path -LiteralPath $MavenWrapperPath -PathType Leaf)) {
@@ -28,7 +30,13 @@ function Invoke-ModuleTests {
     )
 
     Write-Host "Verifying $ModuleName..."
-    & $MavenWrapperPath @MavenArguments
+
+    if ($isWindows) {
+        & $MavenWrapperPath @MavenArguments
+    }
+    else {
+        & bash $MavenWrapperPath @MavenArguments
+    }
 
     if ($LASTEXITCODE -ne 0) {
         throw "$ModuleName verification failed with exit code $LASTEXITCODE."

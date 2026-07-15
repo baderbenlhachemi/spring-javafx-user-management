@@ -44,6 +44,10 @@ If the current PowerShell process blocks local scripts, run the same verificatio
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1
 ```
 
+### Continuous Integration
+
+GitHub Actions runs the same repository verifier on every push and pull request using JDK 17 and the runner's Docker engine for PostgreSQL Testcontainers. Maven dependencies for both modules are cached from their `pom.xml` files, and the workflow has read-only repository permissions. Dependabot checks the backend, JavaFX client, and GitHub Actions dependencies weekly; its update pull requests use the same required verification workflow without blocking ordinary CI runs.
+
 ### Docker Compose
 
 Docker Compose starts the backend and PostgreSQL with health checks and a persistent database volume. Create an ignored local environment file, then replace every angle-bracket placeholder used by Compose:
