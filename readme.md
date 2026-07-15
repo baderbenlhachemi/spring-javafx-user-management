@@ -169,8 +169,8 @@ Or simply run `javafx-client\run.bat` on Windows.
 - **Method:** GET  
 - **URL:** `/api/users/generate/{count}?adminCount=0`
 - **Parameters:** 
-  - `count`: Total number of users to generate
-  - `adminCount`: Number of admin users (optional, default: 0)
+  - `count`: Total number of users to generate (inclusive range: 1–1000)
+  - `adminCount`: Number of admin users (optional, default: 0; inclusive range: 0–`count`)
 - **Secured:** Yes (Admin)
 - **Response:** Downloads JSON file
 

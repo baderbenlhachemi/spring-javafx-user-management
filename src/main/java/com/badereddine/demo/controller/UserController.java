@@ -10,6 +10,7 @@ import com.badereddine.demo.payload.request.LoginRequest;
 import com.badereddine.demo.payload.request.PasswordChangeRequest;
 import com.badereddine.demo.payload.request.ProfileUpdateRequest;
 import com.badereddine.demo.payload.request.SignupRequest;
+import com.badereddine.demo.payload.response.GeneratedUserResponse;
 import com.badereddine.demo.payload.response.JwtResponse;
 import com.badereddine.demo.payload.response.MessageResponse;
 import com.badereddine.demo.payload.response.UserListResponse;
@@ -24,7 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -44,9 +44,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -77,54 +74,21 @@ public class UserController {
 
     @GetMapping("/users/generate/{count}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<FileSystemResource> generateUsers(
+    public ResponseEntity<?> generateUsers(
             @PathVariable int count,
-            @RequestParam(defaultValue = "0") int adminCount,
-            HttpServletResponse response) throws IOException {
+            @RequestParam(defaultValue = "0") int adminCount) throws IOException {
+        try {
+            List<GeneratedUserResponse> users = fakeDataService.generateFakeUsers(count, adminCount);
+            byte[] json = new ObjectMapper().writeValueAsBytes(users);
 
-        // Validate adminCount
-        if (adminCount > count) {
-            adminCount = count;
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=users.json")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(json);
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse(exception.getMessage()));
         }
-        if (adminCount < 0) {
-            adminCount = 0;
-        }
-
-        // Generate user data
-        List<User> users = new ArrayList<>();
-
-        // Generate admin users first
-        for (int i = 0; i < adminCount; i++) {
-            User adminUser = fakeDataService.generateFakeUser();
-            adminUser.setRole(new Role(ERole.ROLE_ADMIN));
-            users.add(adminUser);
-        }
-
-        // Generate regular users
-        for (int i = 0; i < count - adminCount; i++) {
-            User regularUser = fakeDataService.generateFakeUser();
-            regularUser.setRole(new Role(ERole.ROLE_USER));
-            users.add(regularUser);
-        }
-
-        // Convert the list of users to JSON
-        ObjectMapper objectMapper = new ObjectMapper();
-        String json = objectMapper.writeValueAsString(users);
-
-        // Write the JSON to a file
-        Path path = Paths.get("users.json");
-        Files.write(path, json.getBytes());
-
-        // Create a resource from the file
-        FileSystemResource resource = new FileSystemResource(path.toFile());
-
-        // Set the response headers
-        response.setHeader("Content-Disposition", "attachment; filename=users.json");
-
-        // Return the file as a response
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(resource);
     }
 
     @PostMapping("/users/batch")

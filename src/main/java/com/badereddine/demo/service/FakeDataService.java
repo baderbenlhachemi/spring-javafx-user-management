@@ -1,47 +1,68 @@
 package com.badereddine.demo.service;
 
 import com.badereddine.demo.model.ERole;
-import com.badereddine.demo.model.Role;
-import com.badereddine.demo.model.User;
-import com.badereddine.demo.repository.RoleRepository;
+import com.badereddine.demo.payload.response.GeneratedUserResponse;
+import com.badereddine.demo.payload.response.RoleResponse;
 import com.github.javafaker.Faker;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class FakeDataService {
-    @Autowired
-    RoleRepository roleRepository;
+    public static final int MIN_USER_COUNT = 1;
+    public static final int MAX_USER_COUNT = 1_000;
+    public static final int MIN_ADMIN_COUNT = 0;
+    public static final int MAX_ADMIN_COUNT = MAX_USER_COUNT;
+    public static final String INVALID_USER_COUNT_MESSAGE = "count must be between 1 and 1000";
+    public static final String INVALID_ADMIN_COUNT_MESSAGE = "adminCount must be between 0 and count";
 
-    @Autowired
-    PasswordEncoder encoder;
-
-    public User generateFakeUser() {
-
-        Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
-                .orElseGet(() -> roleRepository.save(new Role(ERole.ROLE_ADMIN)));
-        Role userRole = roleRepository.findByName(ERole.ROLE_USER)
-                .orElseGet(() -> roleRepository.save(new Role(ERole.ROLE_USER)));
+    /**
+     * Generates 1 to 1,000 disabled users, with adminCount constrained to the
+     * inclusive range from 0 to count.
+     */
+    public List<GeneratedUserResponse> generateFakeUsers(int count, int adminCount) {
+        validateCounts(count, adminCount);
 
         Faker faker = new Faker();
-        User user = new User();
-        user.setFirstName(faker.name().firstName());
-        user.setLastName(faker.name().lastName());
-        user.setBirthDate(faker.date().birthday());
-        user.setCity(faker.address().city());
-        user.setCountry(faker.address().country());
-        user.setAvatar(faker.internet().avatar());
-        user.setCompany(faker.company().name());
-        user.setJobPosition(faker.company().profession());
-        user.setMobile(faker.phoneNumber().cellPhone());
-        user.setUsername(faker.name().username());
-        user.setEmail(faker.internet().emailAddress());
-        user.setPassword(encoder.encode("password"));
+        List<GeneratedUserResponse> users = new ArrayList<>(count);
 
-        ERole randomRole = faker.bool().bool() ? ERole.ROLE_ADMIN : ERole.ROLE_USER;
-        user.setRole(randomRole == ERole.ROLE_ADMIN ? adminRole : userRole);
+        for (int index = 0; index < count; index++) {
+            ERole role = index < adminCount ? ERole.ROLE_ADMIN : ERole.ROLE_USER;
+            users.add(generateFakeUser(faker, role));
+        }
 
-        return user;
+        return users;
+    }
+
+    private void validateCounts(int count, int adminCount) {
+        if (count < MIN_USER_COUNT || count > MAX_USER_COUNT) {
+            throw new IllegalArgumentException(INVALID_USER_COUNT_MESSAGE);
+        }
+        if (adminCount < MIN_ADMIN_COUNT || adminCount > MAX_ADMIN_COUNT || adminCount > count) {
+            throw new IllegalArgumentException(INVALID_ADMIN_COUNT_MESSAGE);
+        }
+    }
+
+    private GeneratedUserResponse generateFakeUser(Faker faker, ERole role) {
+        return new GeneratedUserResponse(
+                null,
+                faker.name().firstName(),
+                faker.name().lastName(),
+                faker.date().birthday(),
+                faker.address().city(),
+                faker.address().country(),
+                faker.internet().avatar(),
+                faker.company().name(),
+                faker.company().profession(),
+                faker.phoneNumber().cellPhone(),
+                faker.name().username(),
+                faker.internet().emailAddress(),
+                new RoleResponse(role),
+                false,
+                null,
+                null
+        );
     }
 }
