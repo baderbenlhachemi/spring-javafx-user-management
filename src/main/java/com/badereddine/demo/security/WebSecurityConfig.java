@@ -49,6 +49,11 @@ public class WebSecurityConfig {
             "/swagger-ui.html",
     };
 
+    private static final String[] PUBLIC_HEALTH_ENDPOINTS = {
+            "/actuator/health/liveness",
+            "/actuator/health/readiness",
+    };
+
     // Custom filter to handle JWT authentication
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter(JwtUtils jwtUtils) {
@@ -84,6 +89,7 @@ public class WebSecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(PUBLIC_AUTH_ENDPOINTS).permitAll();
+                    auth.requestMatchers(PUBLIC_HEALTH_ENDPOINTS).permitAll();
 
                     if (securityPolicyProperties.registrationEnabled()) {
                         auth.requestMatchers("/api/auth/register").permitAll();
