@@ -12,7 +12,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Calendar;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,11 +23,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleService roleService;
+    private final Clock clock;
 
     @Autowired
-    public UserService(UserRepository userRepository, RoleService roleService) {
+    public UserService(UserRepository userRepository, RoleService roleService, Clock clock) {
         this.userRepository = userRepository;
         this.roleService = roleService;
+        this.clock = clock;
     }
 
     public Optional<User> findByUsername(String username) {
@@ -99,12 +103,12 @@ public class UserService {
     }
 
     public long countNewUsersToday() {
-        Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        return userRepository.countNewUsersSince(cal.getTime());
+        Date startOfToday = Date.from(
+                LocalDate.now(clock)
+                        .atStartOfDay(clock.getZone())
+                        .toInstant()
+        );
+        return userRepository.countNewUsersSince(startOfToday);
     }
 
     private List<User> lockActiveAdmins() {
