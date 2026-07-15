@@ -8,6 +8,7 @@ import com.badereddine.demo.payload.response.UserResponse;
 import com.badereddine.demo.payload.response.UserResponseMapper;
 import com.badereddine.demo.security.services.UserDetailsImpl;
 import com.badereddine.demo.service.UserService;
+import com.badereddine.demo.service.UserPaginationPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ class UserControllerResponseTest {
         controller = new UserController();
         ReflectionTestUtils.setField(controller, "userService", userService);
         ReflectionTestUtils.setField(controller, "userResponseMapper", new UserResponseMapper());
+        ReflectionTestUtils.setField(controller, "userPaginationPolicy", new UserPaginationPolicy());
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
         user = representativeUser();
     }

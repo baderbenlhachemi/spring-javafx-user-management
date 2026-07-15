@@ -22,6 +22,7 @@ import com.badereddine.demo.security.services.UserDetailsImpl;
 import com.badereddine.demo.service.FakeDataService;
 import com.badereddine.demo.service.RoleService;
 import com.badereddine.demo.service.UserImportService;
+import com.badereddine.demo.service.UserPaginationPolicy;
 import com.badereddine.demo.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,7 +31,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -76,6 +76,9 @@ public class UserController {
 
     @Autowired
     private UserImportService userImportService;
+
+    @Autowired
+    private UserPaginationPolicy userPaginationPolicy;
 
     @GetMapping("/users/generate/{count}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -296,18 +299,21 @@ public class UserController {
      */
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserListResponse> getAllUsers(
+    public ResponseEntity<?> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "username") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir,
             @RequestParam(required = false) String search
     ) {
-        Sort sort = sortDir.equalsIgnoreCase("desc")
-                ? Sort.by(sortBy).descending()
-                : Sort.by(sortBy).ascending();
+        Pageable pageable;
+        try {
+            pageable = userPaginationPolicy.create(page, size, sortBy, sortDir);
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse(exception.getMessage()));
+        }
 
-        Pageable pageable = PageRequest.of(page, size, sort);
         Page<User> usersPage;
 
         if (search != null && !search.trim().isEmpty()) {

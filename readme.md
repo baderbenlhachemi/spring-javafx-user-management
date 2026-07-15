@@ -130,7 +130,7 @@ Or simply run `javafx-client\run.bat` on Windows.
 #### List All Users
 - **Method:** GET  
 - **URL:** `/api/users`
-- **Parameters:** `page`, `size`, `sortBy`, `sortDir`, `search`
+- **Parameters:** `page` (default `0`, minimum `0`), `size` (default `10`, range `1`-`100`), `sortBy` (default `username`; one of `username`, `email`, `firstName`, `company`, `enabled`, `lastLogin`), `sortDir` (default `asc`; `asc` or `desc`), `search`
 - **Secured:** Yes (Admin)
 
 #### Get User by Username
