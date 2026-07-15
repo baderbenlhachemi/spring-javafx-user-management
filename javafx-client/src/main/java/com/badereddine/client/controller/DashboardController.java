@@ -273,7 +273,7 @@ public class DashboardController {
     }
 
     private void loadUserProfile() {
-        apiService.getMyProfile(sessionManager.getAuthorizationHeader())
+        apiService.getMyProfile()
             .thenAccept(result -> Platform.runLater(() -> {
                 if (result.isSuccess()) {
                     currentUser = result.getData();
@@ -368,7 +368,7 @@ public class DashboardController {
                     updateEnhancedStatCardValue(card, "...");
                 }
 
-                apiService.getUserStats(sessionManager.getAuthorizationHeader())
+                apiService.getUserStats()
                     .thenAccept(result -> Platform.runLater(() -> {
                         if (result.isSuccess()) {
                             UserStats stats = result.getData();
@@ -649,7 +649,7 @@ public class DashboardController {
 
         if (currentUser == null) {
             showLoadingState("Loading profile...");
-            apiService.getMyProfile(sessionManager.getAuthorizationHeader())
+            apiService.getMyProfile()
                 .thenAccept(result -> Platform.runLater(() -> {
                     if (result.isSuccess()) {
                         currentUser = result.getData();
@@ -873,7 +873,7 @@ public class DashboardController {
             updatedUser.setCity(cityField.getText().trim());
             updatedUser.setCountry(countryField.getText().trim());
 
-            apiService.updateProfile(sessionManager.getAuthorizationHeader(), updatedUser)
+            apiService.updateProfile(updatedUser)
                 .thenAccept(result -> Platform.runLater(() -> {
                     saveButton.setDisable(false);
                     saveButton.setText("Save Changes");
@@ -1043,7 +1043,7 @@ public class DashboardController {
             generateButton.setGraphic(progress);
             statusLabel.setVisible(false);
 
-            apiService.generateUsers(sessionManager.getAuthorizationHeader(), count, adminCount)
+            apiService.generateUsers(count, adminCount)
                 .thenAccept(result -> Platform.runLater(() -> {
                     generateButton.setDisable(false);
                     generateButton.setText("Generate & Download");
@@ -1208,7 +1208,7 @@ public class DashboardController {
                 importButton.setText("Importing...");
                 importButton.setGraphic(progress);
 
-                apiService.batchImportUsers(sessionManager.getAuthorizationHeader(), selectedFile[0])
+                apiService.batchImportUsers(selectedFile[0])
                     .thenAccept(result -> Platform.runLater(() -> {
                         importButton.setDisable(false);
                         importButton.setText("Import Users");
@@ -1326,7 +1326,7 @@ public class DashboardController {
                 resultArea.setVisible(false);
                 resultArea.setManaged(false);
 
-                apiService.getUserProfile(sessionManager.getAuthorizationHeader(), username)
+                apiService.getUserProfile(username)
                     .thenAccept(result -> Platform.runLater(() -> {
                         searchButton.setDisable(false);
                         searchButton.setText("Search");
@@ -1575,7 +1575,7 @@ public class DashboardController {
             changePwButton.setGraphic(pwSpinner);
 
             PasswordChangeRequest request = new PasswordChangeRequest(currentPw, newPw);
-            apiService.changePassword(sessionManager.getAuthorizationHeader(), request)
+            apiService.changePassword(request)
                 .thenAccept(result -> Platform.runLater(() -> {
                     changePwButton.setDisable(false);
                     changePwButton.setText("Change Password");
@@ -1743,7 +1743,7 @@ public class DashboardController {
 
             int pageSize = pageSizeCombo.getValue();
 
-            apiService.getAllUsers(sessionManager.getAuthorizationHeader(), currentPage[0], pageSize, currentSortBy, currentSortDir, currentSearch[0])
+            apiService.getAllUsers(currentPage[0], pageSize, currentSortBy, currentSortDir, currentSearch[0])
                 .thenAccept(result -> Platform.runLater(() -> {
                     tableContainer.getChildren().clear();
 
@@ -1812,7 +1812,7 @@ public class DashboardController {
             exportCsvButton.setDisable(true);
             exportCsvButton.setText("Exporting...");
 
-            apiService.exportUsersToCsv(sessionManager.getAuthorizationHeader(), currentSearch[0])
+            apiService.exportUsersToCsv(currentSearch[0])
                 .thenAccept(result -> Platform.runLater(() -> {
                     exportCsvButton.setDisable(false);
                     exportCsvButton.setText("Export CSV");
@@ -2010,7 +2010,7 @@ public class DashboardController {
         statusBtn.setGraphic(statusIcon);
         statusBtn.setTooltip(new Tooltip(isEnabled ? "Disable User" : "Enable User"));
         statusBtn.setOnAction(e -> {
-            apiService.toggleUserStatus(sessionManager.getAuthorizationHeader(), user.getId(), !isEnabled)
+            apiService.toggleUserStatus(user.getId(), !isEnabled)
                 .thenAccept(result -> Platform.runLater(() -> {
                     if (result.isSuccess()) {
                         reloadCallback.run();
@@ -2068,7 +2068,7 @@ public class DashboardController {
 
         alert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                apiService.deleteUser(sessionManager.getAuthorizationHeader(), user.getId())
+                apiService.deleteUser(user.getId())
                     .thenAccept(result -> Platform.runLater(() -> {
                         if (result.isSuccess()) {
                             reloadCallback.run();
@@ -2158,7 +2158,7 @@ public class DashboardController {
         Button saveRoleBtn = new Button("Update Role");
         saveRoleBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-background-radius: 6;");
         saveRoleBtn.setOnAction(e -> {
-            apiService.changeUserRole(sessionManager.getAuthorizationHeader(), user.getId(), roleCombo.getValue())
+            apiService.changeUserRole(user.getId(), roleCombo.getValue())
                 .thenAccept(result -> Platform.runLater(() -> {
                     if (result.isSuccess()) {
                         reloadCallback.run();
@@ -2210,7 +2210,7 @@ public class DashboardController {
             updatedUser.setCountry(((TextField) countryBox.getChildren().get(1)).getText());
             updatedUser.setMobile(((TextField) mobileBox.getChildren().get(1)).getText());
 
-            apiService.updateUserById(sessionManager.getAuthorizationHeader(), user.getId(), updatedUser)
+            apiService.updateUserById(user.getId(), updatedUser)
                 .thenAccept(result -> Platform.runLater(() -> {
                     if (result.isSuccess()) {
                         removeOverlay(overlay);

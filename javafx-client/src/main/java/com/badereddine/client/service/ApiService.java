@@ -1,5 +1,6 @@
 package com.badereddine.client.service;
 
+import com.badereddine.client.api.ApiClient;
 import com.badereddine.client.config.ClientConfiguration;
 import com.badereddine.client.model.*;
 import com.google.gson.Gson;
@@ -18,27 +19,32 @@ public class ApiService {
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    private final String baseUrl;
-    private final OkHttpClient client;
-    private final Gson gson;
+    private final ApiClient apiClient;
+    private final SessionManager sessionManager;
 
     private static ApiService instance;
 
     private ApiService() {
-        this(ClientConfiguration.load());
+        this(createDefaultApiClient(), SessionManager.getInstance());
     }
 
-    ApiService(ClientConfiguration configuration) {
-        this.baseUrl = configuration.apiBaseUrl();
-        this.client = new OkHttpClient.Builder()
+    public ApiService(ApiClient apiClient, SessionManager sessionManager) {
+        this.apiClient = java.util.Objects.requireNonNull(apiClient, "apiClient must not be null");
+        this.sessionManager = java.util.Objects.requireNonNull(sessionManager, "sessionManager must not be null");
+    }
+
+    private static ApiClient createDefaultApiClient() {
+        ClientConfiguration configuration = ClientConfiguration.load();
+        OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
                 .build();
 
-        this.gson = new GsonBuilder()
+        Gson gson = new GsonBuilder()
                 .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
                 .create();
+        return new ApiClient(client, configuration.apiBaseUrl(), gson);
     }
 
     public static synchronized ApiService getInstance() {
@@ -54,19 +60,19 @@ public class ApiService {
     public CompletableFuture<ApiResult<AuthResponse>> authenticate(String username, String password) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String jsonBody = gson.toJson(new LoginRequest(username, null, password));
+                String jsonBody = apiClient.toJson(new LoginRequest(username, null, password));
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/auth")
+                        .url(apiClient.url("/auth"))
                         .post(body)
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
-                        AuthResponse authResponse = gson.fromJson(responseBody, AuthResponse.class);
+                        AuthResponse authResponse = apiClient.fromJson(responseBody, AuthResponse.class);
                         return ApiResult.success(authResponse);
                     } else {
                         return ApiResult.error("Authentication failed: " + getErrorMessage(responseBody, response.code()));
@@ -81,17 +87,17 @@ public class ApiService {
     /**
      * Generate fake users and download the JSON file (Admin only)
      */
-    public CompletableFuture<ApiResult<byte[]>> generateUsers(String token, int count, int adminCount) {
+    public CompletableFuture<ApiResult<byte[]>> generateUsers(int count, int adminCount) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String url = baseUrl + "/users/generate/" + count + "?adminCount=" + adminCount;
+                String url = apiClient.url("/users/generate/" + count + "?adminCount=" + adminCount);
                 Request request = new Request.Builder()
                         .url(url)
-                        .header("Authorization", token)
+                        .header("Authorization", authorizationHeader())
                         .get()
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     if (response.isSuccessful() && response.body() != null) {
                         byte[] bytes = response.body().bytes();
                         return ApiResult.success(bytes);
@@ -109,10 +115,10 @@ public class ApiService {
     /**
      * Export users to CSV (Admin only)
      */
-    public CompletableFuture<ApiResult<byte[]>> exportUsersToCsv(String token, String search) {
+    public CompletableFuture<ApiResult<byte[]>> exportUsersToCsv(String search) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                StringBuilder urlBuilder = new StringBuilder(baseUrl + "/users/export/csv");
+                StringBuilder urlBuilder = new StringBuilder(apiClient.url("/users/export/csv"));
                 if (search != null && !search.trim().isEmpty()) {
                     try {
                         urlBuilder.append("?search=").append(java.net.URLEncoder.encode(search.trim(), "UTF-8"));
@@ -123,11 +129,11 @@ public class ApiService {
 
                 Request request = new Request.Builder()
                         .url(urlBuilder.toString())
-                        .header("Authorization", token)
+                        .header("Authorization", authorizationHeader())
                         .get()
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     if (response.isSuccessful() && response.body() != null) {
                         byte[] bytes = response.body().bytes();
                         return ApiResult.success(bytes);
@@ -145,7 +151,7 @@ public class ApiService {
     /**
      * Upload a JSON file to batch import users (Admin only)
      */
-    public CompletableFuture<ApiResult<BatchImportResult>> batchImportUsers(String token, File file) {
+    public CompletableFuture<ApiResult<BatchImportResult>> batchImportUsers(File file) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 RequestBody fileBody = RequestBody.create(file, MediaType.get("application/json"));
@@ -155,16 +161,16 @@ public class ApiService {
                         .build();
 
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/users/batch")
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/batch"))
+                        .header("Authorization", authorizationHeader())
                         .post(body)
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
-                        BatchImportResult result = gson.fromJson(responseBody, BatchImportResult.class);
+                        BatchImportResult result = apiClient.fromJson(responseBody, BatchImportResult.class);
                         return ApiResult.success(result);
                     } else {
                         return ApiResult.error("Failed to import users: " + getErrorMessage(responseBody, response.code()));
@@ -179,20 +185,20 @@ public class ApiService {
     /**
      * Get current user's profile
      */
-    public CompletableFuture<ApiResult<User>> getMyProfile(String token) {
+    public CompletableFuture<ApiResult<User>> getMyProfile() {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/users/me")
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/me"))
+                        .header("Authorization", authorizationHeader())
                         .get()
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
-                        User user = gson.fromJson(responseBody, User.class);
+                        User user = apiClient.fromJson(responseBody, User.class);
                         return ApiResult.success(user);
                     } else {
                         return ApiResult.error("Failed to get profile: " + getErrorMessage(responseBody, response.code()));
@@ -207,20 +213,20 @@ public class ApiService {
     /**
      * Get a user's profile by username (admin only)
      */
-    public CompletableFuture<ApiResult<User>> getUserProfile(String token, String username) {
+    public CompletableFuture<ApiResult<User>> getUserProfile(String username) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/users/" + username)
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/" + username))
+                        .header("Authorization", authorizationHeader())
                         .get()
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
-                        User user = gson.fromJson(responseBody, User.class);
+                        User user = apiClient.fromJson(responseBody, User.class);
                         return ApiResult.success(user);
                     } else {
                         return ApiResult.error("Failed to get user profile: " + getErrorMessage(responseBody, response.code()));
@@ -234,7 +240,7 @@ public class ApiService {
 
     private String getErrorMessage(String responseBody, int code) {
         try {
-            ErrorResponse error = gson.fromJson(responseBody, ErrorResponse.class);
+            ErrorResponse error = apiClient.fromJson(responseBody, ErrorResponse.class);
             if (error != null && error.getMessage() != null) {
                 return error.getMessage();
             }
@@ -274,15 +280,15 @@ public class ApiService {
     public CompletableFuture<ApiResult<String>> register(SignupRequest signupRequest) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String jsonBody = gson.toJson(signupRequest);
+                String jsonBody = apiClient.toJson(signupRequest);
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/auth/register")
+                        .url(apiClient.url("/auth/register"))
                         .post(body)
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
@@ -300,19 +306,19 @@ public class ApiService {
     /**
      * Change password for current user
      */
-    public CompletableFuture<ApiResult<String>> changePassword(String token, PasswordChangeRequest request) {
+    public CompletableFuture<ApiResult<String>> changePassword(PasswordChangeRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String jsonBody = gson.toJson(request);
+                String jsonBody = apiClient.toJson(request);
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request httpRequest = new Request.Builder()
-                        .url(baseUrl + "/users/me/password")
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/me/password"))
+                        .header("Authorization", authorizationHeader())
                         .put(body)
                         .build();
 
-                try (Response response = client.newCall(httpRequest).execute()) {
+                try (Response response = apiClient.execute(httpRequest)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
@@ -330,23 +336,23 @@ public class ApiService {
     /**
      * Update profile for current user
      */
-    public CompletableFuture<ApiResult<User>> updateProfile(String token, User updatedUser) {
+    public CompletableFuture<ApiResult<User>> updateProfile(User updatedUser) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String jsonBody = gson.toJson(updatedUser);
+                String jsonBody = apiClient.toJson(updatedUser);
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/users/me")
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/me"))
+                        .header("Authorization", authorizationHeader())
                         .put(body)
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
-                        User user = gson.fromJson(responseBody, User.class);
+                        User user = apiClient.fromJson(responseBody, User.class);
                         return ApiResult.success(user);
                     } else {
                         return ApiResult.error("Failed to update profile: " + getErrorMessage(responseBody, response.code()));
@@ -361,12 +367,12 @@ public class ApiService {
     /**
      * Get all users (Admin only) with pagination and search
      */
-    public CompletableFuture<ApiResult<UserListResponse>> getAllUsers(String token, int page, int size, String sortBy, String sortDir, String search) {
+    public CompletableFuture<ApiResult<UserListResponse>> getAllUsers(int page, int size, String sortBy, String sortDir, String search) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 StringBuilder urlBuilder = new StringBuilder();
-                urlBuilder.append(String.format("%s/users?page=%d&size=%d&sortBy=%s&sortDir=%s",
-                        baseUrl, page, size, sortBy, sortDir));
+                urlBuilder.append(apiClient.url(String.format("/users?page=%d&size=%d&sortBy=%s&sortDir=%s",
+                        page, size, sortBy, sortDir)));
 
                 if (search != null && !search.trim().isEmpty()) {
                     try {
@@ -378,15 +384,15 @@ public class ApiService {
 
                 Request request = new Request.Builder()
                         .url(urlBuilder.toString())
-                        .header("Authorization", token)
+                        .header("Authorization", authorizationHeader())
                         .get()
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
-                        UserListResponse userList = gson.fromJson(responseBody, UserListResponse.class);
+                        UserListResponse userList = apiClient.fromJson(responseBody, UserListResponse.class);
                         return ApiResult.success(userList);
                     } else {
                         return ApiResult.error("Failed to get users: " + getErrorMessage(responseBody, response.code()));
@@ -401,20 +407,20 @@ public class ApiService {
     /**
      * Get user by ID (Admin only)
      */
-    public CompletableFuture<ApiResult<User>> getUserById(String token, Long userId) {
+    public CompletableFuture<ApiResult<User>> getUserById(Long userId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/users/id/" + userId)
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/id/" + userId))
+                        .header("Authorization", authorizationHeader())
                         .get()
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
-                        User user = gson.fromJson(responseBody, User.class);
+                        User user = apiClient.fromJson(responseBody, User.class);
                         return ApiResult.success(user);
                     } else {
                         return ApiResult.error("Failed to get user: " + getErrorMessage(responseBody, response.code()));
@@ -429,16 +435,16 @@ public class ApiService {
     /**
      * Delete user (Admin only)
      */
-    public CompletableFuture<ApiResult<String>> deleteUser(String token, Long userId) {
+    public CompletableFuture<ApiResult<String>> deleteUser(Long userId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/users/" + userId)
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/" + userId))
+                        .header("Authorization", authorizationHeader())
                         .delete()
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
@@ -456,23 +462,23 @@ public class ApiService {
     /**
      * Update user (Admin only - can edit any user)
      */
-    public CompletableFuture<ApiResult<User>> updateUserById(String token, Long userId, User updatedUser) {
+    public CompletableFuture<ApiResult<User>> updateUserById(Long userId, User updatedUser) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String jsonBody = gson.toJson(updatedUser);
+                String jsonBody = apiClient.toJson(updatedUser);
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/users/" + userId)
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/" + userId))
+                        .header("Authorization", authorizationHeader())
                         .put(body)
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
-                        User user = gson.fromJson(responseBody, User.class);
+                        User user = apiClient.fromJson(responseBody, User.class);
                         return ApiResult.success(user);
                     } else {
                         return ApiResult.error("Failed to update user: " + getErrorMessage(responseBody, response.code()));
@@ -487,16 +493,16 @@ public class ApiService {
     /**
      * Change user role (Admin only)
      */
-    public CompletableFuture<ApiResult<String>> changeUserRole(String token, Long userId, String newRole) {
+    public CompletableFuture<ApiResult<String>> changeUserRole(Long userId, String newRole) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/users/" + userId + "/role?role=" + newRole)
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/" + userId + "/role?role=" + newRole))
+                        .header("Authorization", authorizationHeader())
                         .patch(RequestBody.create("", JSON))
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
@@ -514,16 +520,16 @@ public class ApiService {
     /**
      * Toggle user status (enable/disable) - Admin only
      */
-    public CompletableFuture<ApiResult<String>> toggleUserStatus(String token, Long userId, boolean enabled) {
+    public CompletableFuture<ApiResult<String>> toggleUserStatus(Long userId, boolean enabled) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/users/" + userId + "/status?enabled=" + enabled)
-                        .header("Authorization", token)
+                        .url(apiClient.url("/users/" + userId + "/status?enabled=" + enabled))
+                        .header("Authorization", authorizationHeader())
                         .patch(RequestBody.create("", JSON))
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
@@ -541,20 +547,20 @@ public class ApiService {
     /**
      * Get user stats (Admin only)
      */
-    public CompletableFuture<ApiResult<UserStats>> getUserStats(String token) {
+    public CompletableFuture<ApiResult<UserStats>> getUserStats() {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(baseUrl + "/stats/users")
-                        .header("Authorization", token)
+                        .url(apiClient.url("/stats/users"))
+                        .header("Authorization", authorizationHeader())
                         .get()
                         .build();
 
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = apiClient.execute(request)) {
                     String responseBody = response.body() != null ? response.body().string() : "";
 
                     if (response.isSuccessful()) {
-                        UserStats stats = gson.fromJson(responseBody, UserStats.class);
+                        UserStats stats = apiClient.fromJson(responseBody, UserStats.class);
                         return ApiResult.success(stats);
                     } else {
                         return ApiResult.error("Failed to get stats: " + getErrorMessage(responseBody, response.code()));
@@ -564,6 +570,10 @@ public class ApiService {
                 return ApiResult.error("Connection error: " + e.getMessage());
             }
         });
+    }
+
+    private String authorizationHeader() {
+        return sessionManager.getAuthorizationHeader();
     }
 
     /**

@@ -1,8 +1,10 @@
 package com.badereddine.client.service;
 
-import com.badereddine.client.config.ClientConfiguration;
+import com.badereddine.client.api.ApiClient;
 import com.badereddine.client.model.AuthResponse;
 import com.badereddine.client.model.User;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -28,6 +30,7 @@ class ApiServiceTest {
     private MockWebServer server;
     private OkHttpClient client;
     private ApiService apiService;
+    private SessionManager sessionManager;
     private PrintStream originalOut;
     private PrintStream originalErr;
     private ByteArrayOutputStream capturedOut;
@@ -40,7 +43,12 @@ class ApiServiceTest {
         server = new MockWebServer();
         server.start();
         client = new OkHttpClient();
-        apiService = new ApiService(ClientConfiguration.withApiBaseUrl(server.url("/api/").toString()));
+        Gson gson = new GsonBuilder()
+                .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+                .create();
+        ApiClient apiClient = new ApiClient(client, server.url("/api/").toString(), gson);
+        sessionManager = new SessionManager();
+        apiService = new ApiService(apiClient, sessionManager);
         capturedOut = new ByteArrayOutputStream();
         capturedErr = new ByteArrayOutputStream();
         System.setOut(new PrintStream(capturedOut, true, StandardCharsets.UTF_8));
@@ -110,7 +118,9 @@ class ApiServiceTest {
 
     @Test
     void successfulProfileRetrievalDoesNotWriteSensitiveDataToConsole() throws Exception {
-        String token = "Bearer test-token-" + java.util.UUID.randomUUID();
+        String token = "test-token-" + java.util.UUID.randomUUID();
+        sessionManager.setAuthResponse(new AuthResponse(token, "Bearer", 1L, "alice",
+                "alice@example.com", java.util.List.of("ROLE_USER")));
         server.enqueue(new MockResponse()
                 .setResponseCode(200)
                 .setHeader("Content-Type", "application/json")
@@ -126,7 +136,7 @@ class ApiServiceTest {
                         }
                         """));
 
-        ApiService.ApiResult<User> result = apiService.getMyProfile(token)
+        ApiService.ApiResult<User> result = apiService.getMyProfile()
                 .get(5, TimeUnit.SECONDS);
 
         assertTrue(result.isSuccess());
@@ -137,7 +147,7 @@ class ApiServiceTest {
         assertNotNull(request);
         assertEquals("GET", request.getMethod());
         assertEquals("/api/users/me", request.getPath());
-        assertEquals(token, request.getHeader("Authorization"));
+        assertEquals("Bearer " + token, request.getHeader("Authorization"));
         assertNoConsoleOutput();
     }
 

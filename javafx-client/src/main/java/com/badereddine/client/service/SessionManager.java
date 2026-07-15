@@ -13,7 +13,11 @@ public class SessionManager {
     private AuthResponse authResponse;
     private User currentUser;
 
-    private SessionManager() {
+    public SessionManager() {
+    }
+
+    public SessionManager(AuthResponse authResponse) {
+        this.authResponse = authResponse;
     }
 
     public static synchronized SessionManager getInstance() {
