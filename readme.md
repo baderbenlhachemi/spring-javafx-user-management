@@ -54,6 +54,19 @@ The default profile does not create an administrator. Development-only initializ
    .\mvnw.cmd spring-boot:run
    ```
 
+   Flyway creates the schema automatically for an empty database, and Hibernate
+   validates it without changing it. To adopt an existing development database
+   that was previously managed by `ddl-auto=update`:
+
+   1. Back up the database and compare its `roles` and `users` schema with
+      `src/main/resources/db/migration/V1__baseline.sql`.
+   2. With the `dev` profile active, set
+      `$env:FLYWAY_BASELINE_ON_MIGRATE = "true"` and start the backend once.
+      This records the existing schema as version 1 without rerunning V1.
+   3. Stop the backend, remove `FLYWAY_BASELINE_ON_MIGRATE`, and start it again.
+      Hibernate validation must pass. If the existing schema differs from V1,
+      reconcile it from the backup before baselining or use a new empty database.
+
 3. **Open the JavaFX client** (recommended) or, when its policy is enabled, use Swagger UI:
    - Swagger UI: http://localhost:9090/swagger-ui/index.html
 
