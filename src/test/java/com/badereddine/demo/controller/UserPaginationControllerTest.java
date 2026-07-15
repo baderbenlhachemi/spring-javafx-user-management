@@ -29,9 +29,7 @@ class UserPaginationControllerTest {
 
     @BeforeEach
     void setUp() {
-        UserController controller = UserControllerTestFactory.builder()
-                .adminUserService(adminUserService)
-                .build();
+        AdminUserController controller = new AdminUserController(adminUserService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 

@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-class UserControllerAdminInvariantTest {
+class AdminUserControllerInvariantTest {
 
     @Mock
     private AdminUserService adminUserService;
@@ -29,9 +29,7 @@ class UserControllerAdminInvariantTest {
 
     @BeforeEach
     void setUp() {
-        UserController controller = UserControllerTestFactory.builder()
-                .adminUserService(adminUserService)
-                .build();
+        AdminUserController controller = new AdminUserController(adminUserService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new UserRestExceptionHandler())
                 .build();

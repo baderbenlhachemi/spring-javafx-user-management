@@ -1,6 +1,10 @@
 package com.badereddine.demo.security;
 
-import com.badereddine.demo.controller.UserController;
+import com.badereddine.demo.controller.AdminUserController;
+import com.badereddine.demo.controller.AuthenticationController;
+import com.badereddine.demo.controller.ProfileController;
+import com.badereddine.demo.controller.UserStatisticsController;
+import com.badereddine.demo.controller.UserTransferController;
 import com.badereddine.demo.payload.response.UserResponseMapper;
 import com.badereddine.demo.security.jwt.AuthEntryPointJwt;
 import com.badereddine.demo.security.jwt.JwtUtils;
@@ -29,7 +33,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(
-        controllers = {UserController.class, SecurityPolicyProbeController.class},
+        controllers = {
+                AuthenticationController.class,
+                ProfileController.class,
+                AdminUserController.class,
+                UserTransferController.class,
+                UserStatisticsController.class,
+                SecurityPolicyProbeController.class
+        },
         properties = {
                 "demo.security.registration-enabled=false",
                 "demo.security.swagger-enabled=false"

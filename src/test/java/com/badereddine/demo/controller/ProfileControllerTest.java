@@ -7,6 +7,8 @@ import com.badereddine.demo.payload.request.PasswordChangeRequest;
 import com.badereddine.demo.payload.request.ProfileUpdateRequest;
 import com.badereddine.demo.payload.response.RoleResponse;
 import com.badereddine.demo.payload.response.UserResponse;
+import com.badereddine.demo.security.services.UserDetailsImpl;
+import com.badereddine.demo.service.AdminUserService;
 import com.badereddine.demo.service.ProfileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,10 +17,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Date;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,14 +40,15 @@ class ProfileControllerTest {
     @Mock
     private ProfileService profileService;
 
+    @Mock
+    private AdminUserService adminUserService;
+
     private MockMvc mockMvc;
     private UserResponse profile;
 
     @BeforeEach
     void setUp() {
-        UserController controller = UserControllerTestFactory.builder()
-                .profileService(profileService)
-                .build();
+        ProfileController controller = new ProfileController(profileService, adminUserService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new UserRestExceptionHandler())
                 .build();
@@ -63,6 +68,28 @@ class ProfileControllerTest {
                 .andExpect(jsonPath("$.password").doesNotExist());
 
         verify(profileService).getCurrentProfile();
+    }
+
+    @Test
+    void getUsernameProfilePreservesAuthenticatedLookupContract() throws Exception {
+        UserDetailsImpl userDetails = new UserDetailsImpl(
+                7L,
+                "ada",
+                "ada@example.test",
+                "encoded-password-placeholder",
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        when(adminUserService.getUserProfile("ada")).thenReturn(userDetails);
+
+        mockMvc.perform(get("/api/users/ada"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7))
+                .andExpect(jsonPath("$.username").value("ada"))
+                .andExpect(jsonPath("$.email").value("ada@example.test"))
+                .andExpect(jsonPath("$.authorities[0].authority").value("ROLE_USER"))
+                .andExpect(jsonPath("$.password").doesNotExist());
+
+        verify(adminUserService).getUserProfile("ada");
     }
 
     @Test

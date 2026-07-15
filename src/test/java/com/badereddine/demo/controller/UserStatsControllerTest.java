@@ -25,9 +25,7 @@ class UserStatsControllerTest {
 
     @BeforeEach
     void setUp() {
-        UserController controller = UserControllerTestFactory.builder()
-                .userStatisticsService(userStatisticsService)
-                .build();
+        UserStatisticsController controller = new UserStatisticsController(userStatisticsService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 

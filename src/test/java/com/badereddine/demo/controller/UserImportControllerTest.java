@@ -29,9 +29,7 @@ class UserImportControllerTest {
 
     @BeforeEach
     void setUp() {
-        UserController controller = UserControllerTestFactory.builder()
-                .userTransferService(userTransferService)
-                .build();
+        UserTransferController controller = new UserTransferController(userTransferService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 

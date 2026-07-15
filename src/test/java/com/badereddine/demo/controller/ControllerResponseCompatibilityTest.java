@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-class UserControllerResponseTest {
+class ControllerResponseCompatibilityTest {
 
     @Mock
     private AdminUserService adminUserService;
@@ -41,17 +41,16 @@ class UserControllerResponseTest {
     @Mock
     private ProfileService profileService;
 
-    private UserController controller;
+    private ProfileController profileController;
+    private AdminUserController adminUserController;
     private MockMvc mockMvc;
     private User user;
 
     @BeforeEach
     void setUp() {
-        controller = UserControllerTestFactory.builder()
-                .adminUserService(adminUserService)
-                .profileService(profileService)
-                .build();
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        profileController = new ProfileController(profileService, adminUserService);
+        adminUserController = new AdminUserController(adminUserService);
+        mockMvc = MockMvcBuilders.standaloneSetup(profileController, adminUserController).build();
         user = representativeUser();
     }
 
@@ -121,9 +120,9 @@ class UserControllerResponseTest {
         when(adminUserService.updateUser(any(Long.class), any(ProfileUpdateRequest.class)))
                 .thenReturn(new AdminUserService.UserUpdateResult(true, userResponse, null));
 
-        ResponseEntity<UserResponse> profileResponse = controller.getMyProfile();
-        ResponseEntity<?> profileUpdateResponse = controller.updateProfile(new ProfileUpdateRequest());
-        ResponseEntity<?> adminUpdateResponse = controller.updateUser(7L, new ProfileUpdateRequest());
+        ResponseEntity<UserResponse> profileResponse = profileController.getMyProfile();
+        ResponseEntity<?> profileUpdateResponse = profileController.updateProfile(new ProfileUpdateRequest());
+        ResponseEntity<?> adminUpdateResponse = adminUserController.updateUser(7L, new ProfileUpdateRequest());
 
         assertThat(profileResponse.getBody()).isExactlyInstanceOf(UserResponse.class);
         assertThat(profileUpdateResponse.getBody()).isExactlyInstanceOf(UserResponse.class);
