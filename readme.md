@@ -117,6 +117,97 @@ The tracked [.env.example](.env.example) contains names and placeholders only.
 Spring Boot does not load `.env` automatically; keep real values in the shell,
 IDE configuration, deployment environment, or another ignored secret store.
 
+## Run locally with JavaFX
+
+This is the recommended first-run path for checking the complete desktop
+experience, including administrator screens. It starts PostgreSQL with Compose,
+runs the API in the opt-in `dev` profile, creates an administrator using values
+you choose, and launches JavaFX from Maven.
+
+### 1. Create local backend configuration
+
+From the repository root:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Generate a local JWT signing key:
+
+```powershell
+$bytes = New-Object byte[] 32
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$rng.Dispose()
+[Convert]::ToBase64String($bytes)
+```
+
+Edit the ignored `.env` file. Supply your own `DB_USERNAME`, `DB_PASSWORD`,
+and paste the generated value into `JWT_SECRET`. Do not commit `.env`.
+
+### 2. Start PostgreSQL
+
+```powershell
+docker compose build api
+docker compose up -d postgres
+docker compose ps
+```
+
+Wait until `team-access-hub-postgres-1` reports `healthy`.
+
+### 3. Choose a development administrator and start the API
+
+In the same PowerShell window, enter values that you will use to log in:
+
+```powershell
+$devAdminUsername = Read-Host "Choose a development administrator username"
+$devAdminPassword = Read-Host "Choose a development administrator password"
+$devAdminEmail = Read-Host "Choose a development administrator email"
+
+if ([string]::IsNullOrWhiteSpace($devAdminPassword) -or $devAdminPassword.Length -lt 8) {
+    throw "Use a non-empty password containing at least 8 characters."
+}
+```
+
+Start the API in the foreground:
+
+```powershell
+docker compose run --rm --service-ports -e "SPRING_PROFILES_ACTIVE=dev" -e "DEMO_ADMIN_USERNAME=$devAdminUsername" -e "DEMO_ADMIN_PASSWORD=$devAdminPassword" -e "DEMO_ADMIN_EMAIL=$devAdminEmail" api
+```
+
+Leave this window open. Successful first-time startup includes
+`Development administrator initialized` and `Started DemoApplication`.
+
+The initializer creates a missing username but deliberately does not reset an
+existing account's password. Reuse the original password with a retained
+database volume. If the data is disposable and you need a completely fresh
+local setup, stop the API and run `docker compose down --volumes` before
+repeating these steps. This permanently deletes the local Compose database.
+
+### 4. Verify readiness and launch JavaFX
+
+Open a second PowerShell window in the repository root:
+
+```powershell
+Invoke-RestMethod http://localhost:9090/actuator/health/readiness
+Set-Location javafx-client
+..\mvnw.cmd javafx:run
+```
+
+Readiness should report `UP`. Log in with the administrator username and
+password chosen in step 3.
+
+### 5. Stop the local stack
+
+Close JavaFX, press `Ctrl+C` in the API window, return to the repository root,
+and run:
+
+```powershell
+docker compose down
+```
+
+This retains the named PostgreSQL volume for the next run.
+
 ## Container startup
 
 Create an ignored Compose environment file and replace every angle-bracket

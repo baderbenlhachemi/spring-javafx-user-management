@@ -28,10 +28,15 @@ class SecureBaselineDocumentationTest {
                 "## Architecture",
                 "## Prerequisites",
                 "## Configuration",
+                "## Run locally with JavaFX",
                 "## Container startup",
                 "## JavaFX startup and packaging",
                 "## Known limitations",
                 ".\\scripts\\verify.ps1",
+                "docker compose up -d postgres",
+                "SPRING_PROFILES_ACTIVE=dev",
+                "$devAdminPassword = Read-Host",
+                "Invoke-RestMethod http://localhost:9090/actuator/health/readiness",
                 "docker compose up --build -d",
                 "..\\mvnw.cmd javafx:run",
                 "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\javafx-client\\package.ps1");
@@ -61,14 +66,17 @@ class SecureBaselineDocumentationTest {
         String publicGuides = String.join("\n",
                 read("readme.md"),
                 read("javafx-client/README.md"),
-                read("docs/PROJECT_CONTEXT.md")).toLowerCase(Locale.ROOT);
+                read("docs/PROJECT_CONTEXT.md"))
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ");
 
         assertFalse(publicGuides.contains("default login credentials"));
         assertFalse(publicGuides.contains("username `admin` and password"));
         assertFalse(publicGuides.contains("password | `admin`"));
         assertFalse(publicGuides.contains("password: admin"));
         assertFalse(publicGuides.contains("jwtsecret="));
-        assertTrue(publicGuides.contains("there is no documented or committed\ndefault login"));
+        assertFalse(publicGuides.contains("demo_admin_password=local-admin"));
+        assertTrue(publicGuides.contains("there is no documented or committed default login"));
     }
 
     @Test
