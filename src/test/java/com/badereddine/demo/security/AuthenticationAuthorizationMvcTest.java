@@ -14,6 +14,7 @@ import com.badereddine.demo.security.services.UserDetailsServiceImpl;
 import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.AuthenticationService;
 import com.badereddine.demo.service.FakeDataService;
+import com.badereddine.demo.service.ProfileService;
 import com.badereddine.demo.service.RoleService;
 import com.badereddine.demo.service.UserImportService;
 import com.badereddine.demo.service.UserPaginationPolicy;
@@ -57,6 +58,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         WebSecurityConfig.class,
         AuthEntryPointJwt.class,
         AuthenticationService.class,
+        ProfileService.class,
         TimeConfiguration.class,
         JwtUtils.class,
         UserDetailsServiceImpl.class,

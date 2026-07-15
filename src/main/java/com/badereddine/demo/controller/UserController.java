@@ -20,6 +20,7 @@ import com.badereddine.demo.security.services.UserDetailsImpl;
 import com.badereddine.demo.service.AuthenticationService;
 import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.FakeDataService;
+import com.badereddine.demo.service.ProfileService;
 import com.badereddine.demo.service.UserImportService;
 import com.badereddine.demo.service.UserPaginationPolicy;
 import com.badereddine.demo.service.UserService;
@@ -37,7 +38,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -50,8 +50,8 @@ import java.util.*;
 public class UserController {
     private final UserService userService;
     private final AuthenticationService authenticationService;
+    private final ProfileService profileService;
     private final FakeDataService fakeDataService;
-    private final PasswordEncoder passwordEncoder;
     private final UserResponseMapper userResponseMapper;
     private final UserImportService userImportService;
     private final UserPaginationPolicy userPaginationPolicy;
@@ -60,8 +60,8 @@ public class UserController {
     public UserController(
             UserService userService,
             AuthenticationService authenticationService,
+            ProfileService profileService,
             FakeDataService fakeDataService,
-            PasswordEncoder passwordEncoder,
             UserResponseMapper userResponseMapper,
             UserImportService userImportService,
             UserPaginationPolicy userPaginationPolicy,
@@ -69,8 +69,8 @@ public class UserController {
     ) {
         this.userService = userService;
         this.authenticationService = authenticationService;
+        this.profileService = profileService;
         this.fakeDataService = fakeDataService;
-        this.passwordEncoder = passwordEncoder;
         this.userResponseMapper = userResponseMapper;
         this.userImportService = userImportService;
         this.userPaginationPolicy = userPaginationPolicy;
@@ -121,17 +121,7 @@ public class UserController {
     @GetMapping("/users/me")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<UserResponse> getMyProfile() throws UserNotFoundException {
-        // Fetch the user details from the SecurityContext
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        // Get the UserDetailsImpl object from the authentication object
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        // Find the user in the database
-        User user = userService.findByUsername(userDetails.getUsername())
-                .orElseThrow(() -> new UserNotFoundException("User not found!"));
-
-        return ResponseEntity.ok(userResponseMapper.toResponse(user));
+        return ResponseEntity.ok(profileService.getCurrentProfile());
     }
 
     @GetMapping("/users/{username}")
@@ -172,24 +162,8 @@ public class UserController {
     @PutMapping("/users/me/password")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<?> changePassword(@Valid @RequestBody PasswordChangeRequest request) throws UserNotFoundException, InvalidPasswordException {
-        // Get current authenticated user
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        // Find user in database
-        User user = userService.findByUsername(userDetails.getUsername())
-                .orElseThrow(() -> new UserNotFoundException("User not found!"));
-
-        // Verify current password
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new InvalidPasswordException("Current password is incorrect!");
-        }
-
-        // Update password
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userService.save(user);
-
-        return ResponseEntity.ok(new MessageResponse("Password changed successfully!"));
+        profileService.changePassword(request);
+        return ResponseEntity.ok(new MessageResponse(ProfileService.PASSWORD_CHANGED_MESSAGE));
     }
 
     /**
@@ -198,37 +172,10 @@ public class UserController {
     @PutMapping("/users/me")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<?> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) throws UserNotFoundException {
-        // Get current authenticated user
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        // Find user in database
-        User user = userService.findByUsername(userDetails.getUsername())
-                .orElseThrow(() -> new UserNotFoundException("User not found!"));
-
-        // Check if new email is already in use by another user
-        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
-            if (userService.existsByEmail(request.getEmail())) {
-                return ResponseEntity.badRequest()
-                        .body(new MessageResponse("Error: Email is already in use!"));
-            }
-            user.setEmail(request.getEmail());
-        }
-
-        // Update fields if provided
-        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
-        if (request.getLastName() != null) user.setLastName(request.getLastName());
-        if (request.getBirthDate() != null) user.setBirthDate(request.getBirthDate());
-        if (request.getCity() != null) user.setCity(request.getCity());
-        if (request.getCountry() != null) user.setCountry(request.getCountry());
-        if (request.getCompany() != null) user.setCompany(request.getCompany());
-        if (request.getJobPosition() != null) user.setJobPosition(request.getJobPosition());
-        if (request.getMobile() != null) user.setMobile(request.getMobile());
-        if (request.getAvatar() != null) user.setAvatar(request.getAvatar());
-
-        userService.save(user);
-
-        return ResponseEntity.ok(userResponseMapper.toResponse(user));
+        ProfileService.ProfileUpdateResult result = profileService.updateProfile(request);
+        return result.successful()
+                ? ResponseEntity.ok(result.profile())
+                : ResponseEntity.badRequest().body(new MessageResponse(result.message()));
     }
 
     /**

@@ -4,10 +4,10 @@ import com.badereddine.demo.payload.response.UserResponseMapper;
 import com.badereddine.demo.service.AuthenticationService;
 import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.FakeDataService;
+import com.badereddine.demo.service.ProfileService;
 import com.badereddine.demo.service.UserImportService;
 import com.badereddine.demo.service.UserPaginationPolicy;
 import com.badereddine.demo.service.UserService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.mockito.Mockito.mock;
 
@@ -23,8 +23,8 @@ final class UserControllerTestFactory {
     static final class Builder {
         private UserService userService = mock(UserService.class);
         private AuthenticationService authenticationService = mock(AuthenticationService.class);
+        private ProfileService profileService = mock(ProfileService.class);
         private FakeDataService fakeDataService = new FakeDataService();
-        private PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
         private UserResponseMapper userResponseMapper = new UserResponseMapper();
         private UserImportService userImportService = mock(UserImportService.class);
         private UserPaginationPolicy userPaginationPolicy = new UserPaginationPolicy();
@@ -32,6 +32,11 @@ final class UserControllerTestFactory {
 
         Builder userService(UserService value) {
             userService = value;
+            return this;
+        }
+
+        Builder profileService(ProfileService value) {
+            profileService = value;
             return this;
         }
 
@@ -49,8 +54,8 @@ final class UserControllerTestFactory {
             return new UserController(
                     userService,
                     authenticationService,
+                    profileService,
                     fakeDataService,
-                    passwordEncoder,
                     userResponseMapper,
                     userImportService,
                     userPaginationPolicy,

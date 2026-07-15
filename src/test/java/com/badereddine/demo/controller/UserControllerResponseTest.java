@@ -5,7 +5,8 @@ import com.badereddine.demo.model.Role;
 import com.badereddine.demo.model.User;
 import com.badereddine.demo.payload.request.ProfileUpdateRequest;
 import com.badereddine.demo.payload.response.UserResponse;
-import com.badereddine.demo.security.services.UserDetailsImpl;
+import com.badereddine.demo.payload.response.UserResponseMapper;
+import com.badereddine.demo.service.ProfileService;
 import com.badereddine.demo.service.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,13 +18,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +41,9 @@ class UserControllerResponseTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private ProfileService profileService;
+
     private UserController controller;
     private MockMvc mockMvc;
     private User user;
@@ -50,6 +52,7 @@ class UserControllerResponseTest {
     void setUp() {
         controller = UserControllerTestFactory.builder()
                 .userService(userService)
+                .profileService(profileService)
                 .build();
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
         user = representativeUser();
@@ -109,17 +112,10 @@ class UserControllerResponseTest {
 
     @Test
     void profileAndUpdateEndpointsReturnUserResponseDtos() throws Exception {
-        UserDetailsImpl principal = new UserDetailsImpl(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getPassword(),
-                Collections.emptyList()
-        );
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
-        );
-        when(userService.findByUsername("ada")).thenReturn(Optional.of(user));
+        UserResponse userResponse = new UserResponseMapper().toResponse(user);
+        when(profileService.getCurrentProfile()).thenReturn(userResponse);
+        when(profileService.updateProfile(any(ProfileUpdateRequest.class)))
+                .thenReturn(new ProfileService.ProfileUpdateResult(true, userResponse, null));
         when(userService.findById(7L)).thenReturn(Optional.of(user));
 
         ResponseEntity<UserResponse> profileResponse = controller.getMyProfile();
@@ -129,7 +125,9 @@ class UserControllerResponseTest {
         assertThat(profileResponse.getBody()).isExactlyInstanceOf(UserResponse.class);
         assertThat(profileUpdateResponse.getBody()).isExactlyInstanceOf(UserResponse.class);
         assertThat(adminUpdateResponse.getBody()).isExactlyInstanceOf(UserResponse.class);
-        verify(userService, org.mockito.Mockito.times(2)).save(user);
+        verify(profileService).getCurrentProfile();
+        verify(profileService).updateProfile(any(ProfileUpdateRequest.class));
+        verify(userService).save(user);
     }
 
     private User representativeUser() {
