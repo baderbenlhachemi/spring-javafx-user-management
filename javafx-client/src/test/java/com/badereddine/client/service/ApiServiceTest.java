@@ -1,5 +1,6 @@
 package com.badereddine.client.service;
 
+import com.badereddine.client.config.ClientConfiguration;
 import com.badereddine.client.model.AuthResponse;
 import com.badereddine.client.model.User;
 import okhttp3.OkHttpClient;
@@ -37,9 +38,9 @@ class ApiServiceTest {
         originalOut = System.out;
         originalErr = System.err;
         server = new MockWebServer();
-        server.start(9090);
+        server.start();
         client = new OkHttpClient();
-        apiService = ApiService.getInstance();
+        apiService = new ApiService(ClientConfiguration.withApiBaseUrl(server.url("/api/").toString()));
         capturedOut = new ByteArrayOutputStream();
         capturedErr = new ByteArrayOutputStream();
         System.setOut(new PrintStream(capturedOut, true, StandardCharsets.UTF_8));

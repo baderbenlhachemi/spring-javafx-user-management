@@ -1,6 +1,6 @@
 package com.badereddine.client.service;
 
-import com.badereddine.client.model.*;
+import com.badereddine.client.config.ClientConfiguration;
 import com.badereddine.client.model.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -16,15 +16,20 @@ import java.util.concurrent.TimeUnit;
  */
 public class ApiService {
 
-    private static final String BASE_URL = "http://localhost:9090/api";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
+    private final String baseUrl;
     private final OkHttpClient client;
     private final Gson gson;
 
     private static ApiService instance;
 
     private ApiService() {
+        this(ClientConfiguration.load());
+    }
+
+    ApiService(ClientConfiguration configuration) {
+        this.baseUrl = configuration.apiBaseUrl();
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
@@ -53,7 +58,7 @@ public class ApiService {
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/auth")
+                        .url(baseUrl + "/auth")
                         .post(body)
                         .build();
 
@@ -79,7 +84,7 @@ public class ApiService {
     public CompletableFuture<ApiResult<byte[]>> generateUsers(String token, int count, int adminCount) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String url = BASE_URL + "/users/generate/" + count + "?adminCount=" + adminCount;
+                String url = baseUrl + "/users/generate/" + count + "?adminCount=" + adminCount;
                 Request request = new Request.Builder()
                         .url(url)
                         .header("Authorization", token)
@@ -107,7 +112,7 @@ public class ApiService {
     public CompletableFuture<ApiResult<byte[]>> exportUsersToCsv(String token, String search) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                StringBuilder urlBuilder = new StringBuilder(BASE_URL + "/users/export/csv");
+                StringBuilder urlBuilder = new StringBuilder(baseUrl + "/users/export/csv");
                 if (search != null && !search.trim().isEmpty()) {
                     try {
                         urlBuilder.append("?search=").append(java.net.URLEncoder.encode(search.trim(), "UTF-8"));
@@ -150,7 +155,7 @@ public class ApiService {
                         .build();
 
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/users/batch")
+                        .url(baseUrl + "/users/batch")
                         .header("Authorization", token)
                         .post(body)
                         .build();
@@ -178,7 +183,7 @@ public class ApiService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/users/me")
+                        .url(baseUrl + "/users/me")
                         .header("Authorization", token)
                         .get()
                         .build();
@@ -206,7 +211,7 @@ public class ApiService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/users/" + username)
+                        .url(baseUrl + "/users/" + username)
                         .header("Authorization", token)
                         .get()
                         .build();
@@ -273,7 +278,7 @@ public class ApiService {
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/auth/register")
+                        .url(baseUrl + "/auth/register")
                         .post(body)
                         .build();
 
@@ -302,7 +307,7 @@ public class ApiService {
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request httpRequest = new Request.Builder()
-                        .url(BASE_URL + "/users/me/password")
+                        .url(baseUrl + "/users/me/password")
                         .header("Authorization", token)
                         .put(body)
                         .build();
@@ -332,7 +337,7 @@ public class ApiService {
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/users/me")
+                        .url(baseUrl + "/users/me")
                         .header("Authorization", token)
                         .put(body)
                         .build();
@@ -361,7 +366,7 @@ public class ApiService {
             try {
                 StringBuilder urlBuilder = new StringBuilder();
                 urlBuilder.append(String.format("%s/users?page=%d&size=%d&sortBy=%s&sortDir=%s",
-                        BASE_URL, page, size, sortBy, sortDir));
+                        baseUrl, page, size, sortBy, sortDir));
 
                 if (search != null && !search.trim().isEmpty()) {
                     try {
@@ -400,7 +405,7 @@ public class ApiService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/users/id/" + userId)
+                        .url(baseUrl + "/users/id/" + userId)
                         .header("Authorization", token)
                         .get()
                         .build();
@@ -428,7 +433,7 @@ public class ApiService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/users/" + userId)
+                        .url(baseUrl + "/users/" + userId)
                         .header("Authorization", token)
                         .delete()
                         .build();
@@ -458,7 +463,7 @@ public class ApiService {
                 RequestBody body = RequestBody.create(jsonBody, JSON);
 
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/users/" + userId)
+                        .url(baseUrl + "/users/" + userId)
                         .header("Authorization", token)
                         .put(body)
                         .build();
@@ -486,7 +491,7 @@ public class ApiService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/users/" + userId + "/role?role=" + newRole)
+                        .url(baseUrl + "/users/" + userId + "/role?role=" + newRole)
                         .header("Authorization", token)
                         .patch(RequestBody.create("", JSON))
                         .build();
@@ -513,7 +518,7 @@ public class ApiService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/users/" + userId + "/status?enabled=" + enabled)
+                        .url(baseUrl + "/users/" + userId + "/status?enabled=" + enabled)
                         .header("Authorization", token)
                         .patch(RequestBody.create("", JSON))
                         .build();
@@ -540,7 +545,7 @@ public class ApiService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Request request = new Request.Builder()
-                        .url(BASE_URL + "/stats/users")
+                        .url(baseUrl + "/stats/users")
                         .header("Authorization", token)
                         .get()
                         .build();

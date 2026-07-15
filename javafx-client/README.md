@@ -226,13 +226,22 @@ javafx-client/
 
 ## Configuration
 
-The API base URL is configured in `ApiService.java`:
+The client connects to `http://localhost:9090/api` by default. Override the complete API base URL with either:
 
-```java
-private static final String BASE_URL = "http://localhost:9090/api";
+- Environment variable: `TEAM_ACCESS_HUB_API_BASE_URL`
+- JVM property: `teamaccesshub.api.base-url`
+
+The JVM property takes precedence when both are present. For example, in PowerShell:
+
+```powershell
+$env:TEAM_ACCESS_HUB_API_BASE_URL = "https://access.example.com/api"
+..\mvnw.cmd javafx:run
 ```
 
-Modify this if your backend runs on a different host/port.
+For an IDE launch configuration, add a VM option such as
+`-Dteamaccesshub.api.base-url=https://access.example.com/api`.
+
+The value must be an absolute `http` or `https` URL with a host and no credentials, query string, or fragment. Trailing slashes are removed automatically.
 
 ## Building
 
