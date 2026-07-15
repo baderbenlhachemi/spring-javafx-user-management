@@ -251,6 +251,49 @@ To create a standalone JAR:
 mvn clean package
 ```
 
+## Packaged Runtime Image
+
+The supported desktop deliverable is a self-contained, platform-specific
+`jpackage` application image named `TeamAccessHub`. From the repository root,
+run this exact command:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\javafx-client\package.ps1
+```
+
+The script requires PowerShell and a JDK 17 or newer installation containing
+`jpackage`; set `JAVA_HOME` to that JDK or place `jpackage` on `PATH`. Maven
+dependencies must be available locally or the build must be able to download
+them. The script performs a clean JavaFX client test run and stops on a test
+failure before it builds the packaging input or invokes `jpackage`.
+
+Successful Windows and Linux builds are written below
+`javafx-client/target/distribution/TeamAccessHub`; macOS produces
+`javafx-client/target/distribution/TeamAccessHub.app`. Launch paths are:
+
+- Windows: `javafx-client/target/distribution/TeamAccessHub/TeamAccessHub.exe`
+- Linux: `javafx-client/target/distribution/TeamAccessHub/bin/TeamAccessHub`
+- macOS: `javafx-client/target/distribution/TeamAccessHub.app/Contents/MacOS/TeamAccessHub`
+
+Set the API URL in the launching process before starting the packaged client.
+For example, on Windows PowerShell:
+
+```powershell
+$env:TEAM_ACCESS_HUB_API_BASE_URL = "https://access.example.com/api"
+.\javafx-client\target\distribution\TeamAccessHub\TeamAccessHub.exe
+```
+
+If the environment variable is absent, the existing
+`http://localhost:9090/api` development fallback remains in effect. The URL
+validation rules in the Configuration section also apply to the packaged
+application.
+
+Application images contain native launchers and runtimes for the operating
+system and architecture on which they are built. The workflow does not
+cross-compile: build and test separately on each target platform. This task
+produces an unpacked app image, not a signed installer; platform signing,
+notarization, installer formats, and distribution policy are outside its scope.
+
 ## License
 
 This project is part of the JWT User Management demonstration application.
