@@ -8,10 +8,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$isWindows = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
+$runningOnWindows = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
 
 if ([string]::IsNullOrWhiteSpace($MavenWrapperPath)) {
-    $wrapperName = if ($isWindows) { "mvnw.cmd" } else { "mvnw" }
+    $wrapperName = if ($runningOnWindows) { "mvnw.cmd" } else { "mvnw" }
     $MavenWrapperPath = Join-Path $repositoryRoot $wrapperName
 }
 
@@ -31,7 +31,7 @@ function Invoke-ModuleTests {
 
     Write-Host "Verifying $ModuleName..."
 
-    if ($isWindows) {
+    if ($runningOnWindows) {
         & $MavenWrapperPath @MavenArguments
     }
     else {

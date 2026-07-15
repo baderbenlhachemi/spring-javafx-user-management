@@ -29,8 +29,8 @@ class ContinuousIntegrationConfigurationTest {
         String workflow = Files.readString(Path.of(".github", "workflows", "ci.yml"));
 
         assertThat(workflow)
-                .contains("actions/checkout@v4")
-                .contains("actions/setup-java@v4")
+                .contains("actions/checkout@v5")
+                .contains("actions/setup-java@v5")
                 .contains("distribution: temurin")
                 .contains("java-version: \"17\"")
                 .contains("cache: maven")
