@@ -19,6 +19,7 @@ import com.badereddine.demo.payload.response.UserResponse;
 import com.badereddine.demo.payload.response.UserResponseMapper;
 import com.badereddine.demo.security.jwt.JwtUtils;
 import com.badereddine.demo.security.services.UserDetailsImpl;
+import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.FakeDataService;
 import com.badereddine.demo.service.RoleService;
 import com.badereddine.demo.service.UserImportService;
@@ -46,7 +47,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -79,6 +80,9 @@ public class UserController {
 
     @Autowired
     private UserPaginationPolicy userPaginationPolicy;
+
+    @Autowired
+    private CsvExportService csvExportService;
 
     @GetMapping("/users/generate/{count}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -458,53 +462,21 @@ public class UserController {
             @RequestParam(required = false) String search,
             HttpServletResponse response) {
 
+        Pageable exportPage = PageRequest.of(0, CsvExportService.MAX_EXPORT_ROWS);
         List<User> users;
         if (search != null && !search.trim().isEmpty()) {
-            users = userService.searchUsers(search.trim(), PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+            users = userService.searchUsers(search.trim(), exportPage).getContent();
         } else {
-            users = userService.findAll(PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+            users = userService.findAll(exportPage).getContent();
         }
 
-        StringBuilder csv = new StringBuilder();
-
-        // CSV Header
-        csv.append("ID,Username,Email,First Name,Last Name,Company,Job Position,City,Country,Mobile,Role,Status,Created At,Last Login\n");
-
-        // CSV Data
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        for (User user : users) {
-            csv.append(escapeCsv(user.getId() != null ? user.getId().toString() : "")).append(",");
-            csv.append(escapeCsv(user.getUsername())).append(",");
-            csv.append(escapeCsv(user.getEmail())).append(",");
-            csv.append(escapeCsv(user.getFirstName())).append(",");
-            csv.append(escapeCsv(user.getLastName())).append(",");
-            csv.append(escapeCsv(user.getCompany())).append(",");
-            csv.append(escapeCsv(user.getJobPosition())).append(",");
-            csv.append(escapeCsv(user.getCity())).append(",");
-            csv.append(escapeCsv(user.getCountry())).append(",");
-            csv.append(escapeCsv(user.getMobile())).append(",");
-            csv.append(escapeCsv(user.getRole() != null ? user.getRole().getName().name() : "")).append(",");
-            csv.append(user.isEnabled() ? "Active" : "Disabled").append(",");
-            csv.append(user.getCreatedAt() != null ? dateFormat.format(user.getCreatedAt()) : "").append(",");
-            csv.append(user.getLastLogin() != null ? dateFormat.format(user.getLastLogin()) : "Never").append("\n");
-        }
-
-        byte[] csvBytes = csv.toString().getBytes();
+        byte[] csvBytes = csvExportService.createCsv(users);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType("text/csv"));
+        headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));
         headers.setContentDispositionFormData("attachment", "users_export.csv");
         headers.setContentLength(csvBytes.length);
 
         return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
-    }
-
-    private String escapeCsv(String value) {
-        if (value == null) return "";
-        // Escape quotes and wrap in quotes if contains comma, quote, or newline
-        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
-            return "\"" + value.replace("\"", "\"\"") + "\"";
-        }
-        return value;
     }
 }

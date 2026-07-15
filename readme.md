@@ -190,7 +190,7 @@ Or simply run `javafx-client\run.bat` on Windows.
 - **URL:** `/api/users/export/csv`
 - **Parameters:** `search` (optional)
 - **Secured:** Yes (Admin)
-- **Response:** Downloads CSV file
+- **Response:** Downloads a UTF-8 CSV file containing at most 10,000 users. Values that could be interpreted as spreadsheet formulas are neutralized.
 
 ### Statistics
 
