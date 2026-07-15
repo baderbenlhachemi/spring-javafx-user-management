@@ -26,6 +26,24 @@ A comprehensive user management application built with `Spring Boot` and `Spring
 
 ## 🚀 Quick Start
 
+### Repository Verification
+
+Prerequisites are JDK 17 or later, Windows PowerShell 5.1 or later with local script execution permitted, and a running Docker-compatible engine for the backend Testcontainers suite. Maven is not required separately because the repository includes its wrapper.
+
+From the repository root, verify the backend and headless JavaFX client test suites with one command:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+The script runs backend tests first and JavaFX client tests second. It stops at the first failed module and returns a non-zero exit code. Verification uses isolated test configuration and does not read, create, or change a developer `.env` file or local PostgreSQL database. The first run may need network access to resolve Maven wrapper and dependency artifacts.
+
+If the current PowerShell process blocks local scripts, run the same verification in a temporary bypassed process without changing user or machine policy:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1
+```
+
 ### Docker Compose
 
 Docker Compose starts the backend and PostgreSQL with health checks and a persistent database volume. Create an ignored local environment file, then replace every angle-bracket placeholder used by Compose:
