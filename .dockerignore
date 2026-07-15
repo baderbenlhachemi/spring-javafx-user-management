@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+.env
+.env.*
+!.env.example
+**/target
+javafx-client
+docs
+*.iml
+users.json
+new_users.json
+users_export.csv

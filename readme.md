@@ -26,6 +26,28 @@ A comprehensive user management application built with `Spring Boot` and `Spring
 
 ## 🚀 Quick Start
 
+### Docker Compose
+
+Docker Compose starts the backend and PostgreSQL with health checks and a persistent database volume. Create an ignored local environment file, then replace every angle-bracket placeholder used by Compose:
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env and set DB_USERNAME, DB_PASSWORD, and JWT_SECRET.
+docker compose up --build -d
+docker compose ps
+Invoke-RestMethod http://localhost:9090/actuator/health/readiness
+```
+
+Compose derives the container-only JDBC URL from `DB_NAME` and the `postgres` service name; the `DB_URL` entry remains for running the backend directly on the host. Public registration and Swagger stay disabled unless their existing policy variables are explicitly enabled.
+
+Stop the services without deleting database data:
+
+```powershell
+docker compose down
+```
+
+The named `postgres-data` volume survives normal shutdown. Use `docker compose down --volumes` only when you intentionally want to discard the local database.
+
 ### Development Administrator
 
 The default profile does not create an administrator. Development-only initialization is opt-in through the `dev` profile, and its username, password, and email must be supplied externally.

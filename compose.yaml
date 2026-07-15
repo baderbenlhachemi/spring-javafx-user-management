@@ -1,0 +1,44 @@
+name: team-access-hub
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-team_access_hub}
+      POSTGRES_USER: ${DB_USERNAME:-team_access_hub}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD before starting Compose}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-team_access_hub}
+      DB_USERNAME: ${DB_USERNAME:-team_access_hub}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD before starting Compose}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting Compose}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      DEMO_REGISTRATION_ENABLED: ${DEMO_REGISTRATION_ENABLED:-false}
+      DEMO_SWAGGER_ENABLED: ${DEMO_SWAGGER_ENABLED:-false}
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9090/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  postgres-data:
