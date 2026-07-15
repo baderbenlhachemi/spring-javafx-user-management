@@ -1,0 +1,26 @@
+[
+  {
+    "id": 999,
+    "firstName": "Privileged",
+    "lastName": "Attempt",
+    "birthDate": 0,
+    "city": "Casablanca",
+    "country": "Morocco",
+    "avatar": "https://example.test/privileged.png",
+    "company": "Example Labs",
+    "jobPosition": "Administrator",
+    "mobile": "+212600000000",
+    "username": "privileged-import",
+    "email": "privileged-import@example.test",
+    "password": "client-supplied-password",
+    "passwordHash": "client-supplied-hash",
+    "password_hash": "client-supplied-snake-hash",
+    "enabled": true,
+    "createdAt": 1700000000000,
+    "lastLogin": 1700000100000,
+    "role": {
+      "id": 777,
+      "name": "ROLE_ADMIN"
+    }
+  }
+]

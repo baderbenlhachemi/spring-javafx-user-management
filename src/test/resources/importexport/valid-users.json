@@ -1,0 +1,18 @@
+[
+  {
+    "firstName": "Grace",
+    "lastName": "Hopper",
+    "birthDate": 0,
+    "city": "New York",
+    "country": "United States",
+    "avatar": "https://example.test/grace.png",
+    "company": "Example Labs",
+    "jobPosition": "Engineer",
+    "mobile": "+12025550123",
+    "username": "grace-import",
+    "email": "grace-import@example.test",
+    "role": {
+      "name": "ROLE_USER"
+    }
+  }
+]
