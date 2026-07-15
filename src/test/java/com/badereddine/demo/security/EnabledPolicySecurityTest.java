@@ -10,14 +10,12 @@ import com.badereddine.demo.security.jwt.AuthEntryPointJwt;
 import com.badereddine.demo.security.jwt.JwtUtils;
 import com.badereddine.demo.security.services.UserDetailsServiceImpl;
 import com.badereddine.demo.service.AdminUserService;
-import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.AuthenticationService;
-import com.badereddine.demo.service.FakeDataService;
 import com.badereddine.demo.service.ProfileService;
 import com.badereddine.demo.service.RoleService;
-import com.badereddine.demo.service.UserImportService;
 import com.badereddine.demo.service.UserService;
 import com.badereddine.demo.service.UserStatisticsService;
+import com.badereddine.demo.service.UserTransferService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -53,8 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         AuthEntryPointJwt.class,
         AuthenticationService.class,
         TimeConfiguration.class,
-        UserResponseMapper.class,
-        CsvExportService.class
+        UserResponseMapper.class
 })
 @ActiveProfiles("test")
 class EnabledPolicySecurityTest {
@@ -69,9 +66,6 @@ class EnabledPolicySecurityTest {
     private RoleService roleService;
 
     @MockBean
-    private FakeDataService fakeDataService;
-
-    @MockBean
     private ProfileService profileService;
 
     @MockBean
@@ -81,7 +75,7 @@ class EnabledPolicySecurityTest {
     private UserStatisticsService userStatisticsService;
 
     @MockBean
-    private UserImportService userImportService;
+    private UserTransferService userTransferService;
 
     @MockBean
     private JwtUtils jwtUtils;

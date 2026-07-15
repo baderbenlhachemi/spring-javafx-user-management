@@ -3,28 +3,20 @@ package com.badereddine.demo.controller;
 import com.badereddine.demo.exception.InvalidPasswordException;
 import com.badereddine.demo.exception.UserImportException;
 import com.badereddine.demo.exception.UserNotFoundException;
-import com.badereddine.demo.model.User;
 import com.badereddine.demo.payload.request.LoginRequest;
 import com.badereddine.demo.payload.request.PasswordChangeRequest;
 import com.badereddine.demo.payload.request.ProfileUpdateRequest;
 import com.badereddine.demo.payload.request.SignupRequest;
-import com.badereddine.demo.payload.response.GeneratedUserResponse;
 import com.badereddine.demo.payload.response.JwtResponse;
 import com.badereddine.demo.payload.response.MessageResponse;
 import com.badereddine.demo.payload.response.UserResponse;
 import com.badereddine.demo.service.AdminUserService;
 import com.badereddine.demo.service.AuthenticationService;
-import com.badereddine.demo.service.CsvExportService;
-import com.badereddine.demo.service.FakeDataService;
 import com.badereddine.demo.service.ProfileService;
 import com.badereddine.demo.service.UserImportService;
-import com.badereddine.demo.service.UserService;
 import com.badereddine.demo.service.UserStatisticsService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletResponse;
+import com.badereddine.demo.service.UserTransferService;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -40,33 +32,24 @@ import java.util.*;
 @RestController
 @RequestMapping("/api")
 public class UserController {
-    private final UserService userService;
     private final AuthenticationService authenticationService;
     private final ProfileService profileService;
     private final AdminUserService adminUserService;
     private final UserStatisticsService userStatisticsService;
-    private final FakeDataService fakeDataService;
-    private final UserImportService userImportService;
-    private final CsvExportService csvExportService;
+    private final UserTransferService userTransferService;
 
     public UserController(
-            UserService userService,
             AuthenticationService authenticationService,
             ProfileService profileService,
             AdminUserService adminUserService,
             UserStatisticsService userStatisticsService,
-            FakeDataService fakeDataService,
-            UserImportService userImportService,
-            CsvExportService csvExportService
+            UserTransferService userTransferService
     ) {
-        this.userService = userService;
         this.authenticationService = authenticationService;
         this.profileService = profileService;
         this.adminUserService = adminUserService;
         this.userStatisticsService = userStatisticsService;
-        this.fakeDataService = fakeDataService;
-        this.userImportService = userImportService;
-        this.csvExportService = csvExportService;
+        this.userTransferService = userTransferService;
     }
 
     @GetMapping("/users/generate/{count}")
@@ -75,8 +58,7 @@ public class UserController {
             @PathVariable int count,
             @RequestParam(defaultValue = "0") int adminCount) throws IOException {
         try {
-            List<GeneratedUserResponse> users = fakeDataService.generateFakeUsers(count, adminCount);
-            byte[] json = new ObjectMapper().writeValueAsBytes(users);
+            byte[] json = userTransferService.generateUsersJson(count, adminCount);
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=users.json")
@@ -92,7 +74,7 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> batchUsers(@RequestParam("file") MultipartFile file) {
         try {
-            UserImportService.UserImportResult result = userImportService.importUsers(file);
+            UserImportService.UserImportResult result = userTransferService.importUsers(file);
             Map<String, Integer> response = new HashMap<>();
             response.put("totalRecords", result.totalRecords());
             response.put("successfulImports", result.successfulImports());
@@ -256,19 +238,8 @@ public class UserController {
      */
     @GetMapping("/users/export/csv")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<byte[]> exportUsersToCsv(
-            @RequestParam(required = false) String search,
-            HttpServletResponse response) {
-
-        Pageable exportPage = PageRequest.of(0, CsvExportService.MAX_EXPORT_ROWS);
-        List<User> users;
-        if (search != null && !search.trim().isEmpty()) {
-            users = userService.searchUsers(search.trim(), exportPage).getContent();
-        } else {
-            users = userService.findAll(exportPage).getContent();
-        }
-
-        byte[] csvBytes = csvExportService.createCsv(users);
+    public ResponseEntity<byte[]> exportUsersToCsv(@RequestParam(required = false) String search) {
+        byte[] csvBytes = userTransferService.exportUsersCsv(search);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));

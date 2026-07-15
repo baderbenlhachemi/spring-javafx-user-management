@@ -2,6 +2,7 @@ package com.badereddine.demo.controller;
 
 import com.badereddine.demo.exception.UserImportException;
 import com.badereddine.demo.service.UserImportService;
+import com.badereddine.demo.service.UserTransferService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,14 +23,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserImportControllerTest {
 
     @Mock
-    private UserImportService userImportService;
+    private UserTransferService userTransferService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         UserController controller = UserControllerTestFactory.builder()
-                .userImportService(userImportService)
+                .userTransferService(userTransferService)
                 .build();
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
@@ -37,7 +38,7 @@ class UserImportControllerTest {
     @Test
     void preservesMultipartFieldAndSuccessfulResultCountShape() throws Exception {
         MockMultipartFile file = jsonFile("[]");
-        when(userImportService.importUsers(any()))
+        when(userTransferService.importUsers(any()))
                 .thenReturn(new UserImportService.UserImportResult(3, 2, 1));
 
         mockMvc.perform(multipart("/api/users/batch").file(file))
@@ -46,13 +47,13 @@ class UserImportControllerTest {
                 .andExpect(jsonPath("$.successfulImports").value(2))
                 .andExpect(jsonPath("$.failedImports").value(1));
 
-        verify(userImportService).importUsers(file);
+        verify(userTransferService).importUsers(file);
     }
 
     @Test
     void returnsStableBadRequestForInvalidImport() throws Exception {
         MockMultipartFile file = jsonFile("[{not-json}]");
-        when(userImportService.importUsers(any()))
+        when(userTransferService.importUsers(any()))
                 .thenThrow(new UserImportException(UserImportService.MALFORMED_JSON_MESSAGE));
 
         mockMvc.perform(multipart("/api/users/batch").file(file))

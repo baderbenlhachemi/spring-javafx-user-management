@@ -1,7 +1,11 @@
 package com.badereddine.demo.controller;
 
 import com.badereddine.demo.payload.response.GeneratedUserResponse;
+import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.FakeDataService;
+import com.badereddine.demo.service.UserImportService;
+import com.badereddine.demo.service.UserService;
+import com.badereddine.demo.service.UserTransferService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -37,8 +42,15 @@ class UserGenerationControllerTest {
     @BeforeEach
     void setUp() {
         fakeDataService = new FakeDataService();
+        UserTransferService userTransferService = new UserTransferService(
+                fakeDataService,
+                mock(UserImportService.class),
+                mock(UserService.class),
+                new CsvExportService(),
+                objectMapper
+        );
         UserController controller = UserControllerTestFactory.builder()
-                .fakeDataService(fakeDataService)
+                .userTransferService(userTransferService)
                 .build();
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
