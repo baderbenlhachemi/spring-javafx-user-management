@@ -3,6 +3,7 @@ package com.badereddine.demo.security;
 import com.badereddine.demo.security.jwt.AuthEntryPointJwt;
 import com.badereddine.demo.security.jwt.AuthTokenFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,6 +21,7 @@ import com.badereddine.demo.security.services.UserDetailsServiceImpl;
 
 @Configuration
 @EnableMethodSecurity
+@EnableConfigurationProperties(SecurityPolicyProperties.class)
 public class WebSecurityConfig {
     @Autowired
     UserDetailsServiceImpl userDetailsService;
@@ -27,8 +29,15 @@ public class WebSecurityConfig {
     @Autowired
     private AuthEntryPointJwt unauthorizedHandler;
 
-    private static final String[] AUTH_WHITELIST = {
+    @Autowired
+    private SecurityPolicyProperties securityPolicyProperties;
+
+    private static final String[] PUBLIC_AUTH_ENDPOINTS = {
+            "/api/auth",
             "/api/v1/auth/**",
+    };
+
+    private static final String[] API_DOCUMENTATION_ENDPOINTS = {
             "/v3/api-docs/**",
             "/v3/api-docs.yaml",
             "/swagger-ui/**",
@@ -68,11 +77,23 @@ public class WebSecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth ->
-                        auth.requestMatchers("/api/auth/**", "/api/auth/register").permitAll()
-                                .requestMatchers(AUTH_WHITELIST).permitAll()
-                                .anyRequest().authenticated()
-                );
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(PUBLIC_AUTH_ENDPOINTS).permitAll();
+
+                    if (securityPolicyProperties.registrationEnabled()) {
+                        auth.requestMatchers("/api/auth/register").permitAll();
+                    } else {
+                        auth.requestMatchers("/api/auth/register").denyAll();
+                    }
+
+                    if (securityPolicyProperties.swaggerEnabled()) {
+                        auth.requestMatchers(API_DOCUMENTATION_ENDPOINTS).permitAll();
+                    } else {
+                        auth.requestMatchers(API_DOCUMENTATION_ENDPOINTS).denyAll();
+                    }
+
+                    auth.anyRequest().authenticated();
+                });
 
         // Add the authentication provider to the http object
         http.authenticationProvider(authenticationProvider());

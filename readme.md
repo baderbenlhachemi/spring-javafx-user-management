@@ -47,14 +47,14 @@ The default profile does not create an administrator. Development-only initializ
    $env:DEMO_ADMIN_EMAIL = "<development-admin-email>"
    ```
 
-   `JWT_EXPIRATION_MS` is optional and defaults to `86400000`. The committed `.env.example` is a reference only; Spring Boot does not automatically load `.env` files. Keep local values in your shell, IDE run configuration, or another ignored secret store.
+   `JWT_EXPIRATION_MS` is optional and defaults to `86400000`. Public registration and Swagger are disabled by default, and the explicit `dev` profile enables both for local use. `DEMO_REGISTRATION_ENABLED` and `DEMO_SWAGGER_ENABLED` can override either policy. The committed `.env.example` is a reference only; Spring Boot does not automatically load `.env` files. Keep local values in your shell, IDE run configuration, or another ignored secret store.
 
 2. **Start the Spring Boot backend:**
    ```bash
    .\mvnw.cmd spring-boot:run
    ```
 
-3. **Open the JavaFX client** (recommended) or use Swagger UI:
+3. **Open the JavaFX client** (recommended) or, when its policy is enabled, use Swagger UI:
    - Swagger UI: http://localhost:9090/swagger-ui/index.html
 
 4. **Login with the development administrator values you supplied**, if the `dev` profile is active.
@@ -101,11 +101,11 @@ Or simply run `javafx-client\run.bat` on Windows.
 - **Response:** JWT token and user details
 - **Note:** Updates last login timestamp
 
-#### Register (Admin only)
+#### Public Registration (Policy Controlled)
 - **Method:** POST
-- **URL:** `/api/signup`
-- **Body:** User registration details
-- **Secured:** Yes (Admin)
+- **URL:** `/api/auth/register`
+- **Body:** `{ "username": "string", "email": "string", "password": "string", "firstName": "string", "lastName": "string" }`
+- **Availability:** Disabled by default; enabled by the `dev` profile or `DEMO_REGISTRATION_ENABLED=true`
 
 ### User Profile
 
@@ -247,8 +247,10 @@ The application runs on port `9090` by default. Database credentials and JWT sig
 
 `JWT_EXPIRATION_MS` is optional and defaults to 24 hours. See `.env.example` for variable names and safe placeholders; never put real values in that tracked example file.
 
+`DEMO_REGISTRATION_ENABLED` and `DEMO_SWAGGER_ENABLED` are optional and default to `false`. The explicit `dev` profile defaults both to `true`; either can still be overridden independently.
+
 ### Swagger UI
-Access the API documentation at: http://localhost:9090/swagger-ui/index.html
+When `DEMO_SWAGGER_ENABLED=true` or the `dev` profile enables the policy, access the API documentation at: http://localhost:9090/swagger-ui/index.html
 
 ## 📁 Project Structure
 
