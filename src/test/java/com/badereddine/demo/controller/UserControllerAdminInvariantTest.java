@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -34,8 +33,9 @@ class UserControllerAdminInvariantTest {
 
     @BeforeEach
     void setUp() {
-        UserController controller = new UserController();
-        ReflectionTestUtils.setField(controller, "userService", userService);
+        UserController controller = UserControllerTestFactory.builder()
+                .userService(userService)
+                .build();
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new UserRestExceptionHandler())
                 .build();

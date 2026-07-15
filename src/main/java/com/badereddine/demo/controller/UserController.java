@@ -28,7 +28,6 @@ import com.badereddine.demo.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -54,35 +53,40 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api")
 public class UserController {
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
+    private final RoleService roleService;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtils jwtUtils;
+    private final FakeDataService fakeDataService;
+    private final PasswordEncoder passwordEncoder;
+    private final UserResponseMapper userResponseMapper;
+    private final UserImportService userImportService;
+    private final UserPaginationPolicy userPaginationPolicy;
+    private final CsvExportService csvExportService;
 
-    @Autowired
-    private RoleService roleService;
-
-    @Autowired
-    private AuthenticationManager authenticationManager;
-
-    @Autowired
-    private JwtUtils jwtUtils;
-
-    @Autowired
-    private FakeDataService fakeDataService;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private UserResponseMapper userResponseMapper;
-
-    @Autowired
-    private UserImportService userImportService;
-
-    @Autowired
-    private UserPaginationPolicy userPaginationPolicy;
-
-    @Autowired
-    private CsvExportService csvExportService;
+    public UserController(
+            UserService userService,
+            RoleService roleService,
+            AuthenticationManager authenticationManager,
+            JwtUtils jwtUtils,
+            FakeDataService fakeDataService,
+            PasswordEncoder passwordEncoder,
+            UserResponseMapper userResponseMapper,
+            UserImportService userImportService,
+            UserPaginationPolicy userPaginationPolicy,
+            CsvExportService csvExportService
+    ) {
+        this.userService = userService;
+        this.roleService = roleService;
+        this.authenticationManager = authenticationManager;
+        this.jwtUtils = jwtUtils;
+        this.fakeDataService = fakeDataService;
+        this.passwordEncoder = passwordEncoder;
+        this.userResponseMapper = userResponseMapper;
+        this.userImportService = userImportService;
+        this.userPaginationPolicy = userPaginationPolicy;
+        this.csvExportService = csvExportService;
+    }
 
     @GetMapping("/users/generate/{count}")
     @PreAuthorize("hasRole('ADMIN')")

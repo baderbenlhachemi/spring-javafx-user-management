@@ -2,7 +2,7 @@ package com.badereddine.demo.security;
 
 import com.badereddine.demo.security.jwt.AuthEntryPointJwt;
 import com.badereddine.demo.security.jwt.AuthTokenFilter;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.badereddine.demo.security.jwt.JwtUtils;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,14 +23,19 @@ import com.badereddine.demo.security.services.UserDetailsServiceImpl;
 @EnableMethodSecurity
 @EnableConfigurationProperties(SecurityPolicyProperties.class)
 public class WebSecurityConfig {
-    @Autowired
-    UserDetailsServiceImpl userDetailsService;
+    private final UserDetailsServiceImpl userDetailsService;
+    private final AuthEntryPointJwt unauthorizedHandler;
+    private final SecurityPolicyProperties securityPolicyProperties;
 
-    @Autowired
-    private AuthEntryPointJwt unauthorizedHandler;
-
-    @Autowired
-    private SecurityPolicyProperties securityPolicyProperties;
+    public WebSecurityConfig(
+            UserDetailsServiceImpl userDetailsService,
+            AuthEntryPointJwt unauthorizedHandler,
+            SecurityPolicyProperties securityPolicyProperties
+    ) {
+        this.userDetailsService = userDetailsService;
+        this.unauthorizedHandler = unauthorizedHandler;
+        this.securityPolicyProperties = securityPolicyProperties;
+    }
 
     private static final String[] PUBLIC_AUTH_ENDPOINTS = {
             "/api/auth",
@@ -46,8 +51,8 @@ public class WebSecurityConfig {
 
     // Custom filter to handle JWT authentication
     @Bean
-    public AuthTokenFilter authenticationJwtTokenFilter() {
-        return new AuthTokenFilter();
+    public AuthTokenFilter authenticationJwtTokenFilter(JwtUtils jwtUtils) {
+        return new AuthTokenFilter(jwtUtils, userDetailsService);
     }
 
     // Provider to authenticate users
@@ -73,7 +78,7 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthTokenFilter authTokenFilter) throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -99,7 +104,7 @@ public class WebSecurityConfig {
         http.authenticationProvider(authenticationProvider());
 
         // Add the custom filter to the http object
-        http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         // Return the http object
         return http.build();

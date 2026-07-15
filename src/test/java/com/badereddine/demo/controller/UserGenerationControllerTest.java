@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -38,8 +37,9 @@ class UserGenerationControllerTest {
     @BeforeEach
     void setUp() {
         fakeDataService = new FakeDataService();
-        UserController controller = new UserController();
-        ReflectionTestUtils.setField(controller, "fakeDataService", fakeDataService);
+        UserController controller = UserControllerTestFactory.builder()
+                .fakeDataService(fakeDataService)
+                .build();
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 

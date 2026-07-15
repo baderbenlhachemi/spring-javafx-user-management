@@ -11,7 +11,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -38,9 +37,9 @@ class UserCsvExportControllerTest {
 
     @BeforeEach
     void setUp() {
-        UserController controller = new UserController();
-        ReflectionTestUtils.setField(controller, "userService", userService);
-        ReflectionTestUtils.setField(controller, "csvExportService", new CsvExportService());
+        UserController controller = UserControllerTestFactory.builder()
+                .userService(userService)
+                .build();
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 

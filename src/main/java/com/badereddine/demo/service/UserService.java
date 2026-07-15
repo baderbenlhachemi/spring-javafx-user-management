@@ -6,7 +6,6 @@ import com.badereddine.demo.model.ERole;
 import com.badereddine.demo.model.Role;
 import com.badereddine.demo.model.User;
 import com.badereddine.demo.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,6 @@ public class UserService {
     private final RoleService roleService;
     private final Clock clock;
 
-    @Autowired
     public UserService(UserRepository userRepository, RoleService roleService, Clock clock) {
         this.userRepository = userRepository;
         this.roleService = roleService;

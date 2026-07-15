@@ -8,7 +8,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -29,8 +28,9 @@ class UserImportControllerTest {
 
     @BeforeEach
     void setUp() {
-        UserController controller = new UserController();
-        ReflectionTestUtils.setField(controller, "userImportService", userImportService);
+        UserController controller = UserControllerTestFactory.builder()
+                .userImportService(userImportService)
+                .build();
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 

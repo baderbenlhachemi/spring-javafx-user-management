@@ -3,7 +3,6 @@ package com.badereddine.demo.service;
 import com.badereddine.demo.model.ERole;
 import com.badereddine.demo.model.Role;
 import com.badereddine.demo.repository.RoleRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -12,7 +11,6 @@ import java.util.Optional;
 public class RoleService {
     private final RoleRepository roleRepository;
 
-    @Autowired
     public RoleService(RoleRepository roleRepository) {
         this.roleRepository = roleRepository;
     }

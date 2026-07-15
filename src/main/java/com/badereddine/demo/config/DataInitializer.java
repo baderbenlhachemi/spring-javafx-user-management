@@ -7,7 +7,6 @@ import com.badereddine.demo.repository.RoleRepository;
 import com.badereddine.demo.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.env.Environment;
@@ -24,26 +23,31 @@ import java.util.Date;
 public class DataInitializer implements CommandLineRunner {
     private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final Environment environment;
+    private final String adminUsername;
+    private final String adminPassword;
+    private final String adminEmail;
 
-    @Autowired
-    private RoleRepository roleRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private Environment environment;
-
-    @Value("${demo.initializer.admin.username:}")
-    private String adminUsername;
-
-    @Value("${demo.initializer.admin.password:}")
-    private String adminPassword;
-
-    @Value("${demo.initializer.admin.email:}")
-    private String adminEmail;
+    public DataInitializer(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            Environment environment,
+            @Value("${demo.initializer.admin.username:}") String adminUsername,
+            @Value("${demo.initializer.admin.password:}") String adminPassword,
+            @Value("${demo.initializer.admin.email:}") String adminEmail
+    ) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.environment = environment;
+        this.adminUsername = adminUsername;
+        this.adminPassword = adminPassword;
+        this.adminEmail = adminEmail;
+    }
 
     @Override
     public void run(String... args) {

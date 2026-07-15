@@ -17,11 +17,16 @@ import java.util.Date;
 public class JwtUtils {
     private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
-    @Value("${demo.jwtSecret}")
-    private String jwtSecret;
+    private final String jwtSecret;
+    private final int jwtExpirationMs;
 
-    @Value("${demo.jwtExpirationMs}")
-    private int jwtExpirationMs;
+    public JwtUtils(
+            @Value("${demo.jwtSecret}") String jwtSecret,
+            @Value("${demo.jwtExpirationMs}") int jwtExpirationMs
+    ) {
+        this.jwtSecret = jwtSecret;
+        this.jwtExpirationMs = jwtExpirationMs;
+    }
 
     // Generate a JWT token for authenticated users
     public String generateJwtToken(Authentication authentication) {
