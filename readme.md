@@ -1,333 +1,278 @@
-# JWT User Management
+# Team Access Hub
 
-A comprehensive user management application built with `Spring Boot` and `Spring Security`, featuring JWT authentication, role-based access control, and a modern JavaFX desktop client. The application generates realistic user data using the `Faker` library and provides complete CRUD operations for user management.
+Team Access Hub is a Spring Boot identity and access operations API with a
+JavaFX desktop administration client. The current v0.2 secure baseline focuses
+on protecting credentials and personal data, enforcing two-role access rules,
+and making the existing application reproducible through migrations,
+containers, automated tests, CI, and a native desktop image.
 
-## ✨ Features
+The product direction is an invitation-led access lifecycle with revocable
+sessions and an audit trail. Those capabilities are planned work; they are not
+part of v0.2.
 
-### Backend (Spring Boot)
-- 🔐 **JWT Authentication** - Secure token-based authentication
-- 👥 **Role-Based Access Control** - Admin and User roles with specific permissions
-- 📊 **User Management** - Full CRUD operations for users
-- 🔄 **Batch Import/Export** - Import users from JSON, export to CSV
-- 📈 **User Statistics** - Dashboard stats for admins
-- 🔍 **Search & Pagination** - Server-side search with sorting
-- ⏱️ **Last Login Tracking** - Track when users last logged in
-- 🚫 **Enable/Disable Users** - Control user access without deletion
+## Secure baseline scope
 
-### JavaFX Client
-- 🎨 **Modern Dark Theme UI** - Beautiful, responsive interface
-- 👤 **Profile Management** - View and edit your profile
-- 👥 **User Administration** - Full user management for admins
-- 📊 **Dashboard Statistics** - Real-time user stats
-- 📁 **Generate & Import Users** - Create fake users or import from JSON
-- 📥 **Export to CSV** - Download user list as spreadsheet
-- 🔍 **Search & Filter** - Find users quickly
-- ✏️ **Inline Editing** - Edit users via modal dialogs
+The implemented baseline includes:
 
-## 🚀 Quick Start
+- JWT login and policy-controlled self-registration.
+- Member profile read, update, and password change.
+- Administrator user listing, search, pagination, update, deletion, role
+  change, and enable/disable workflows.
+- A transactional last-active-administrator safeguard.
+- Bounded fake-user generation and restricted JSON import.
+- Bounded, UTF-8 CSV export with spreadsheet-formula neutralization.
+- Explicit response DTOs that do not expose password hashes or persistence
+  identifiers for roles.
+- Externalized database credentials and JWT signing material.
+- Flyway-managed PostgreSQL schema validation.
+- Public, redacted liveness and readiness probes.
+- Testcontainers integration tests, one-command verification, and GitHub
+  Actions CI.
+- Docker Compose startup for PostgreSQL and the API.
+- A configurable, testable JavaFX API client and a platform-native app image.
 
-### Repository Verification
+## Architecture
 
-Prerequisites are JDK 17 or later, Windows PowerShell 5.1 or later with local script execution permitted, and a running Docker-compatible engine for the backend Testcontainers suite. Maven is not required separately because the repository includes its wrapper.
+The repository is a modular monolith with one desktop client. The API remains
+the system of record and independently enforces every authorization rule.
 
-From the repository root, verify the backend and headless JavaFX client test suites with one command:
+```mermaid
+flowchart LR
+    Desktop["JavaFX desktop client"] -->|"OkHttp + JWT"| Controllers["Focused REST controllers"]
+    Controllers --> Services["Application services"]
+    Services --> Repositories["Spring Data repositories"]
+    Repositories --> Database[(PostgreSQL)]
+    Controllers --> Security["Spring Security + JWT filter"]
+```
+
+Backend workflows are split across authentication, profile, administration,
+statistics, and transfer boundaries. The JavaFX client keeps its token and
+current principal in memory and uses a separate transport boundary. See
+[Architecture Direction](docs/ARCHITECTURE.md) for current and future
+boundaries.
+
+## Prerequisites
+
+- JDK 17 or later. A JDK containing `jpackage` is required only for desktop
+  packaging.
+- Docker Desktop or another Docker-compatible engine.
+- Windows PowerShell 5.1 or PowerShell 7.
+- Network access on the first build so the Maven wrapper and dependencies can
+  be resolved.
+
+Maven and PostgreSQL do not need to be installed separately for repository
+verification.
+
+## Evaluate in under ten minutes
+
+From a clean checkout, start Docker and run:
 
 ```powershell
 .\scripts\verify.ps1
 ```
 
-The script runs backend tests first and JavaFX client tests second. It stops at the first failed module and returns a non-zero exit code. Verification uses isolated test configuration and does not read, create, or change a developer `.env` file or local PostgreSQL database. The first run may need network access to resolve Maven wrapper and dependency artifacts.
+This runs the complete backend suite against disposable PostgreSQL
+Testcontainers and then runs the headless JavaFX suite. It stops at the first
+failed module and returns a non-zero exit code. It does not read or modify a
+developer `.env` file or local PostgreSQL database.
 
-If the current PowerShell process blocks local scripts, run the same verification in a temporary bypassed process without changing user or machine policy:
+If local script execution is blocked, use a process-scoped bypass:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1
 ```
 
-### Continuous Integration
+Focused module commands are:
 
-GitHub Actions runs the same repository verifier on every push and pull request using JDK 17 and the runner's Docker engine for PostgreSQL Testcontainers. Maven dependencies for both modules are cached from their `pom.xml` files, and the workflow has read-only repository permissions. Dependabot checks the backend, JavaFX client, and GitHub Actions dependencies weekly; its update pull requests use the same required verification workflow without blocking ordinary CI runs.
+```powershell
+.\mvnw.cmd test
+.\mvnw.cmd -f javafx-client\pom.xml test
+```
 
-### Docker Compose
+GitHub Actions runs the same repository verifier on every push and pull
+request with JDK 17 and Docker. Dependabot checks the backend, desktop client,
+and workflow dependencies weekly.
 
-Docker Compose starts the backend and PostgreSQL with health checks and a persistent database volume. Create an ignored local environment file, then replace every angle-bracket placeholder used by Compose:
+## Configuration
+
+No usable credential or signing key is committed. Backend startup requires the
+following environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `DB_URL` | PostgreSQL JDBC URL for a host-run backend |
+| `DB_USERNAME` | PostgreSQL username |
+| `DB_PASSWORD` | PostgreSQL password |
+| `JWT_SECRET` | Base64-encoded JWT key with at least 256 bits |
+| `JWT_EXPIRATION_MS` | Optional access-token lifetime; default `86400000` |
+| `DEMO_REGISTRATION_ENABLED` | Optional registration policy; default `false` |
+| `DEMO_SWAGGER_ENABLED` | Optional Swagger policy; default `false` |
+
+The `dev` profile requires externally supplied `DEMO_ADMIN_USERNAME`,
+`DEMO_ADMIN_PASSWORD`, and `DEMO_ADMIN_EMAIL`. It enables registration and
+Swagger unless either policy is explicitly overridden. The default profile
+does not initialize an account.
+
+The tracked [.env.example](.env.example) contains names and placeholders only.
+Spring Boot does not load `.env` automatically; keep real values in the shell,
+IDE configuration, deployment environment, or another ignored secret store.
+
+## Container startup
+
+Create an ignored Compose environment file and replace every angle-bracket
+placeholder before starting services:
 
 ```powershell
 Copy-Item .env.example .env
-# Edit .env and set DB_USERNAME, DB_PASSWORD, and JWT_SECRET.
+# Edit .env and supply DB_USERNAME, DB_PASSWORD, and JWT_SECRET.
+docker compose config
 docker compose up --build -d
 docker compose ps
 Invoke-RestMethod http://localhost:9090/actuator/health/readiness
 ```
 
-Compose derives the container-only JDBC URL from `DB_NAME` and the `postgres` service name; the `DB_URL` entry remains for running the backend directly on the host. Public registration and Swagger stay disabled unless their existing policy variables are explicitly enabled.
+Compose derives its container-only JDBC URL from `DB_NAME` and the `postgres`
+service. Registration and Swagger remain disabled unless their environment
+policies are enabled. This baseline Compose stack does not seed a login
+account; use externally managed data or the host-run `dev` workflow when an
+interactive administrator account is needed.
 
-Stop the services without deleting database data:
+Stop services while retaining PostgreSQL data:
 
 ```powershell
 docker compose down
 ```
 
-The named `postgres-data` volume survives normal shutdown. Use `docker compose down --volumes` only when you intentionally want to discard the local database.
+`docker compose down --volumes` intentionally deletes the named database
+volume and all of its local data.
 
-### Development Administrator
+## Host development startup
 
-The default profile does not create an administrator. Development-only initialization is opt-in through the `dev` profile, and its username, password, and email must be supplied externally.
+Start PostgreSQL, supply the required backend variables in the shell or IDE,
+and then run:
 
-### Running the Application
+```powershell
+.\mvnw.cmd spring-boot:run
+```
 
-1. **Set the required backend environment variables:**
+For opt-in development initialization, activate `dev` and supply all three
+`DEMO_ADMIN_*` variables before startup. There is no documented or committed
+default login.
 
-   ```powershell
-   $env:DB_URL = "jdbc:postgresql://localhost:5432/team_access_hub"
-   $env:DB_USERNAME = "<database-username>"
-   $env:DB_PASSWORD = "<database-password>"
-   $env:JWT_SECRET = "<base64-encoded-256-bit-key>"
+Flyway creates version 1 of the schema for an empty database and Hibernate
+validates it. Before adopting a pre-Flyway database, back it up, compare it to
+`src/main/resources/db/migration/V1__baseline.sql`, and follow the guarded
+baseline procedure in [Project Context](docs/PROJECT_CONTEXT.md).
 
-   # Optional development-only administrator
-   $env:SPRING_PROFILES_ACTIVE = "dev"
-   $env:DEMO_ADMIN_USERNAME = "<development-admin-username>"
-   $env:DEMO_ADMIN_PASSWORD = "<development-admin-password>"
-   $env:DEMO_ADMIN_EMAIL = "<development-admin-email>"
-   ```
+## JavaFX startup and packaging
 
-   `JWT_EXPIRATION_MS` is optional and defaults to `86400000`. Public registration and Swagger are disabled by default, and the explicit `dev` profile enables both for local use. `DEMO_REGISTRATION_ENABLED` and `DEMO_SWAGGER_ENABLED` can override either policy. The committed `.env.example` is a reference only; Spring Boot does not automatically load `.env` files. Keep local values in your shell, IDE run configuration, or another ignored secret store.
+The client uses `http://localhost:9090/api` for local development unless the
+complete API URL is overridden:
 
-2. **Start the Spring Boot backend:**
-   ```bash
-   .\mvnw.cmd spring-boot:run
-   ```
-
-   Flyway creates the schema automatically for an empty database, and Hibernate
-   validates it without changing it. To adopt an existing development database
-   that was previously managed by `ddl-auto=update`:
-
-   1. Back up the database and compare its `roles` and `users` schema with
-      `src/main/resources/db/migration/V1__baseline.sql`.
-   2. With the `dev` profile active, set
-      `$env:FLYWAY_BASELINE_ON_MIGRATE = "true"` and start the backend once.
-      This records the existing schema as version 1 without rerunning V1.
-   3. Stop the backend, remove `FLYWAY_BASELINE_ON_MIGRATE`, and start it again.
-      Hibernate validation must pass. If the existing schema differs from V1,
-      reconcile it from the backup before baselining or use a new empty database.
-
-3. **Open the JavaFX client** (recommended) or, when its policy is enabled, use Swagger UI:
-   - Swagger UI: http://localhost:9090/swagger-ui/index.html
-
-4. **Login with the development administrator values you supplied**, if the `dev` profile is active.
-
-## 🖥️ JavaFX Client Application
-
-A modern JavaFX desktop client is available in the `javafx-client` folder. It provides a beautiful dark-themed UI to interact with all API endpoints.
-
-### Features
-- 🔐 JWT Authentication with animated login screen
-- 👤 User profile viewing and editing
-- 👥 Complete user management (Admin)
-- 📊 Real-time user statistics dashboard (Admin)
-- 🔄 Generate fake users with customizable admin count
-- 📁 Batch user import from JSON files
-- 📥 Export users to CSV
-- 🔍 Advanced search with sorting
-- ✏️ Edit any user via modal dialog (Admin)
-- 🔄 Change user roles (Admin)
-- 🚫 Enable/Disable users (Admin)
-- 🗑️ Delete users (Admin)
-- ⏱️ Last login tracking
-- 🔒 Change password
-
-### Running the JavaFX Client
-
-```bash
-cd javafx-client
+```powershell
+$env:TEAM_ACCESS_HUB_API_BASE_URL = "https://access.example.com/api"
+Set-Location javafx-client
 ..\mvnw.cmd javafx:run
 ```
 
-Or simply run `javafx-client\run.bat` on Windows.
+The JVM property `teamaccesshub.api.base-url` is also supported and takes
+precedence over the environment variable. The value must be an absolute HTTP
+or HTTPS URL without credentials, query, or fragment.
 
-> **Note:** Make sure the Spring Boot backend is running on `localhost:9090` before starting the client.
+Build and test a native application image from the repository root with:
 
-## 📡 API Endpoints
-
-### Authentication
-
-#### Login
-- **Method:** POST  
-- **URL:** `/api/auth`
-- **Body:** `{ "username": "string", "password": "string" }`
-- **Response:** JWT token and user details
-- **Note:** Updates last login timestamp
-
-#### Public Registration (Policy Controlled)
-- **Method:** POST
-- **URL:** `/api/auth/register`
-- **Body:** `{ "username": "string", "email": "string", "password": "string", "firstName": "string", "lastName": "string" }`
-- **Availability:** Disabled by default; enabled by the `dev` profile or `DEMO_REGISTRATION_ENABLED=true`
-
-### User Profile
-
-#### Get My Profile
-- **Method:** GET  
-- **URL:** `/api/users/me`
-- **Secured:** Yes (User/Admin)
-
-#### Update My Profile
-- **Method:** PUT
-- **URL:** `/api/users/me`
-- **Secured:** Yes (User/Admin)
-
-#### Change Password
-- **Method:** POST
-- **URL:** `/api/users/me/password`
-- **Body:** `{ "currentPassword": "string", "newPassword": "string" }`
-- **Secured:** Yes (User/Admin)
-
-### User Management (Admin)
-
-#### List All Users
-- **Method:** GET  
-- **URL:** `/api/users`
-- **Parameters:** `page` (default `0`, minimum `0`), `size` (default `10`, range `1`-`100`), `sortBy` (default `username`; one of `username`, `email`, `firstName`, `company`, `enabled`, `lastLogin`), `sortDir` (default `asc`; `asc` or `desc`), `search`
-- **Secured:** Yes (Admin)
-
-#### Get User by Username
-- **Method:** GET  
-- **URL:** `/api/users/{username}`
-- **Secured:** Yes (Admin)
-
-#### Get User by ID
-- **Method:** GET
-- **URL:** `/api/users/id/{id}`
-- **Secured:** Yes (Admin)
-
-#### Update User
-- **Method:** PUT
-- **URL:** `/api/users/{id}`
-- **Secured:** Yes (Admin)
-
-#### Delete User
-- **Method:** DELETE
-- **URL:** `/api/users/{id}`
-- **Secured:** Yes (Admin)
-
-#### Change User Role
-- **Method:** PATCH
-- **URL:** `/api/users/{id}/role?role=ROLE_USER|ROLE_ADMIN`
-- **Secured:** Yes (Admin)
-
-#### Toggle User Status
-- **Method:** PATCH
-- **URL:** `/api/users/{id}/status?enabled=true|false`
-- **Secured:** Yes (Admin)
-
-### User Generation & Import
-
-#### Generate Fake Users
-- **Method:** GET  
-- **URL:** `/api/users/generate/{count}?adminCount=0`
-- **Parameters:** 
-  - `count`: Total number of users to generate (inclusive range: 1–1000)
-  - `adminCount`: Number of admin users (optional, default: 0; inclusive range: 0–`count`)
-- **Secured:** Yes (Admin)
-- **Response:** Downloads JSON file
-
-#### Batch Import Users
-- **Method:** POST  
-- **URL:** `/api/users/batch`
-- **Content-Type:** multipart/form-data
-- **Parameters:** `file` (JSON file)
-- **Limits:** 1 MiB and 1–1000 records
-- **Required record fields:** `firstName`, `lastName`, `birthDate`, `city`, `country`, `avatar`, `company`, `jobPosition`, `mobile`, `username`, `email`, and `role.name`
-- **Allowed roles:** `ROLE_USER` and `ROLE_ADMIN`
-- **Security:** Password/hash, ID, status, and timestamp input is ignored. Imported accounts receive a server-generated non-recoverable credential and are disabled.
-- **Secured:** Yes (Admin)
-
-#### Export Users to CSV
-- **Method:** GET
-- **URL:** `/api/users/export/csv`
-- **Parameters:** `search` (optional)
-- **Secured:** Yes (Admin)
-- **Response:** Downloads a UTF-8 CSV file containing at most 10,000 users. Values that could be interpreted as spreadsheet formulas are neutralized.
-
-### Statistics
-
-#### Get User Statistics
-- **Method:** GET
-- **URL:** `/api/stats/users`
-- **Secured:** Yes (Admin)
-- **Response:**
-  ```json
-  {
-    "totalUsers": 100,
-    "totalAdmins": 5,
-    "totalRegularUsers": 95,
-    "newUsersToday": 3
-  }
-  ```
-
-## 🗄️ Data Model
-
-### User Fields
-| Field | Type | Description |
-|-------|------|-------------|
-| id | Long | Unique identifier |
-| username | String | Login username |
-| email | String | Email address |
-| password | String | Encrypted password |
-| firstName | String | First name |
-| lastName | String | Last name |
-| birthDate | Date | Date of birth |
-| city | String | City |
-| country | String | Country |
-| company | String | Company name |
-| jobPosition | String | Job title |
-| mobile | String | Phone number |
-| avatar | String | Avatar URL |
-| role | Role | User role (ADMIN/USER) |
-| enabled | Boolean | Account status |
-| createdAt | Timestamp | Account creation date |
-| lastLogin | Timestamp | Last login timestamp |
-
-## ⚙️ Technical Details
-
-- **Framework:** Spring Boot 3.x
-- **Java Version:** 17
-- **Database:** PostgreSQL (configurable)
-- **Security:** Spring Security with JWT
-- **API Documentation:** Swagger/OpenAPI
-- **Build Tool:** Maven
-- **Client:** JavaFX 21
-
-## 🔧 Configuration
-
-The application runs on port `9090` by default. Database credentials and JWT signing material are not stored in source control. Startup requires `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and a Base64-encoded JWT key of at least 256 bits in `JWT_SECRET`. Missing required values cause startup to fail with the missing environment-variable name.
-
-`JWT_EXPIRATION_MS` is optional and defaults to 24 hours. See `.env.example` for variable names and safe placeholders; never put real values in that tracked example file.
-
-`DEMO_REGISTRATION_ENABLED` and `DEMO_SWAGGER_ENABLED` are optional and default to `false`. The explicit `dev` profile defaults both to `true`; either can still be overridden independently.
-
-### Swagger UI
-When `DEMO_SWAGGER_ENABLED=true` or the `dev` profile enables the policy, access the API documentation at: http://localhost:9090/swagger-ui/index.html
-
-## 📁 Project Structure
-
-```
-SpringBoot-JWT-UserManagement/
-├── src/main/java/com/badereddine/demo/
-│   ├── controller/       # REST controllers
-│   ├── model/            # Entity classes
-│   ├── repository/       # Data repositories
-│   ├── service/          # Business logic
-│   ├── security/         # JWT & Spring Security
-│   ├── exception/        # Custom exceptions
-│   └── payload/          # Request/Response DTOs
-├── javafx-client/        # JavaFX desktop client
-│   ├── src/main/java/    # Client source code
-│   └── pom.xml           # Client dependencies
-├── pom.xml               # Backend dependencies
-└── readme.md             # This file
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\javafx-client\package.ps1
 ```
 
-## 📜 License
+See the [JavaFX client guide](javafx-client/README.md) for platform-specific
+artifact and launcher paths.
 
-This project is for educational purposes.
+## API contract
+
+All domain endpoints use the existing unversioned `/api` contract.
+Authentication requires a bearer token except where noted.
+
+| Method | Path | Policy |
+| --- | --- | --- |
+| `POST` | `/api/auth` | Public login |
+| `POST` | `/api/auth/register` | Public only when registration policy is enabled; denied by default |
+| `GET` | `/api/users/me` | Authenticated member |
+| `PUT` | `/api/users/me` | Authenticated member |
+| `PUT` | `/api/users/me/password` | Authenticated member |
+| `GET` | `/api/users/{username}` | Administrator |
+| `GET` | `/api/users` | Administrator; bounded pagination and allow-listed sorting |
+| `GET` | `/api/users/id/{id}` | Administrator |
+| `PUT` | `/api/users/{id}` | Administrator |
+| `DELETE` | `/api/users/{id}` | Administrator |
+| `PATCH` | `/api/users/{id}/role` | Administrator |
+| `PATCH` | `/api/users/{id}/status` | Administrator |
+| `GET` | `/api/users/generate/{count}` | Administrator; `count` 1-1000 |
+| `POST` | `/api/users/batch` | Administrator; JSON file up to 1 MiB and 1000 records |
+| `GET` | `/api/users/export/csv` | Administrator; at most 10000 rows |
+| `GET` | `/api/stats/users` | Administrator |
+
+The public operational probes are:
+
+- `GET /actuator/health/liveness`
+- `GET /actuator/health/readiness`
+
+Aggregate health is authenticated. Swagger routes are denied by default and
+are available only when `DEMO_SWAGGER_ENABLED=true` or the `dev` policy enables
+them.
+
+## Security and data boundaries
+
+- Access tokens, passwords, hashes, signing material, and full sensitive
+  payloads must not be logged or committed.
+- JWT access tokens are stateless. Disabled users are rejected when their
+  identity is loaded, but v0.2 has no refresh-token inventory or explicit
+  per-session revocation.
+- Generated JSON contains no credential field. Imported accounts are disabled
+  and receive server-owned encoded credentials.
+- User API responses are explicit DTOs and never expose the password field.
+- CSV output is UTF-8, bounded, structurally escaped, and neutralized for common
+  spreadsheet formula prefixes.
+
+## Known limitations
+
+- Invitations, explicit lifecycle states, refresh-token rotation, session
+  management, and audit history are Phase 2 work.
+- The API remains under `/api` rather than a versioned public contract.
+- Authorization currently uses only `ROLE_USER` and `ROLE_ADMIN`.
+- Access tokens default to a 24-hour lifetime and cannot be individually
+  revoked.
+- The JavaFX UI is programmatic and its controllers still contain substantial
+  presentation logic.
+- Desktop images are unsigned and platform-specific; the packaging workflow
+  does not cross-compile.
+- The Compose baseline proves deployment and readiness but does not seed an
+  interactive account.
+- There is no hosted demo, tagged release, screenshot set, or explicit license
+  file yet.
+
+## Documentation
+
+- [Project Context](docs/PROJECT_CONTEXT.md): verified current state, commands,
+  and risks.
+- [Architecture Direction](docs/ARCHITECTURE.md): current boundaries and planned
+  evolution.
+- [Portfolio Roadmap](docs/PORTFOLIO_ROADMAP.md): product direction and deferred
+  phases.
+- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md): v0.2 task definitions and
+  validation gates.
+- [Changelog](docs/CHANGELOG.md): task-level implementation and verification
+  history.
+
+## Repository layout
+
+```text
+.
+|-- src/main/java/                  Spring Boot API
+|-- src/main/resources/db/migration Flyway migrations
+|-- src/test/java/                  Backend and integration tests
+|-- javafx-client/                  JavaFX client, tests, and packaging
+|-- scripts/verify.ps1              Ordered repository verification
+|-- compose.yaml                    API and PostgreSQL development stack
+`-- docs/                           Architecture, roadmap, plan, and history
+```

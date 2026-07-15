@@ -37,7 +37,6 @@ build/
 
 ### VS Code ###
 .vscode/
-/docs/
 /AGENTS.md
 
 ### Local environment configuration ###
