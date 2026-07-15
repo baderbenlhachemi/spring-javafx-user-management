@@ -2,6 +2,7 @@ package com.badereddine.demo.controller;
 
 import com.badereddine.demo.exception.AccessDeniedException;
 import com.badereddine.demo.exception.InvalidPasswordException;
+import com.badereddine.demo.exception.UserImportException;
 import com.badereddine.demo.exception.UserNotFoundException;
 import com.badereddine.demo.model.ERole;
 import com.badereddine.demo.model.Role;
@@ -20,6 +21,7 @@ import com.badereddine.demo.security.jwt.JwtUtils;
 import com.badereddine.demo.security.services.UserDetailsImpl;
 import com.badereddine.demo.service.FakeDataService;
 import com.badereddine.demo.service.RoleService;
+import com.badereddine.demo.service.UserImportService;
 import com.badereddine.demo.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -72,6 +74,9 @@ public class UserController {
     @Autowired
     private UserResponseMapper userResponseMapper;
 
+    @Autowired
+    private UserImportService userImportService;
+
     @GetMapping("/users/generate/{count}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> generateUsers(
@@ -93,45 +98,18 @@ public class UserController {
 
     @PostMapping("/users/batch")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> batchUsers(@RequestParam("file") MultipartFile file) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        int totalRecords = 0;
-        int successfulImports = 0;
-        int failedImports = 0;
-
-        // Ensure roles are saved in the database
-        Role adminRole = roleService.findByName(ERole.ROLE_ADMIN)
-                .orElseGet(() -> roleService.save(new Role(ERole.ROLE_ADMIN)));
-        Role userRole = roleService.findByName(ERole.ROLE_USER)
-                .orElseGet(() -> roleService.save(new Role(ERole.ROLE_USER)));
-
-        // Read the users from the file and convert them to User objects
-        User[] users = mapper.readValue(file.getInputStream(), User[].class);
-        totalRecords = users.length;
-
-        // Save each user to the database
-        for (User user : users) {
-            if (!userService.existsByUsername(user.getUsername()) && !userService.existsByEmail(user.getEmail())) {
-                user.setPassword(user.getPassword());
-
-                // Replace the role in the user object with the role from the database
-                Role savedRole = user.getRole().getName() == ERole.ROLE_ADMIN ? adminRole : userRole;
-                user.setRole(savedRole);
-
-                userService.save(user);
-                successfulImports++;
-            } else {
-                failedImports++;
-            }
+    public ResponseEntity<?> batchUsers(@RequestParam("file") MultipartFile file) {
+        try {
+            UserImportService.UserImportResult result = userImportService.importUsers(file);
+            Map<String, Integer> response = new HashMap<>();
+            response.put("totalRecords", result.totalRecords());
+            response.put("successfulImports", result.successfulImports());
+            response.put("failedImports", result.failedImports());
+            return ResponseEntity.ok(response);
+        } catch (UserImportException exception) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse(exception.getMessage()));
         }
-
-        // Return the response
-        Map<String, Integer> response = new HashMap<>();
-        response.put("totalRecords", totalRecords);
-        response.put("successfulImports", successfulImports);
-        response.put("failedImports", failedImports);
-
-        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/auth")

@@ -179,6 +179,10 @@ Or simply run `javafx-client\run.bat` on Windows.
 - **URL:** `/api/users/batch`
 - **Content-Type:** multipart/form-data
 - **Parameters:** `file` (JSON file)
+- **Limits:** 1 MiB and 1–1000 records
+- **Required record fields:** `firstName`, `lastName`, `birthDate`, `city`, `country`, `avatar`, `company`, `jobPosition`, `mobile`, `username`, `email`, and `role.name`
+- **Allowed roles:** `ROLE_USER` and `ROLE_ADMIN`
+- **Security:** Password/hash, ID, status, and timestamp input is ignored. Imported accounts receive a server-generated non-recoverable credential and are disabled.
 - **Secured:** Yes (Admin)
 
 #### Export Users to CSV
