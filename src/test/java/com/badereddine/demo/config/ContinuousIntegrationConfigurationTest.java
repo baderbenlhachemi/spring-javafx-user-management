@@ -62,6 +62,8 @@ class ContinuousIntegrationConfigurationTest {
                 .contains("System.PlatformID]::Win32NT")
                 .contains("\"mvnw.cmd\"")
                 .contains("\"mvnw\"")
-                .contains("& bash $MavenWrapperPath @MavenArguments");
+                .contains("& bash $MavenWrapperPath @MavenArguments")
+                .contains("javafx-client/pom.xml")
+                .doesNotContain("javafx-client\\pom.xml");
     }
 }

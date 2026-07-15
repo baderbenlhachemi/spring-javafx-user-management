@@ -48,7 +48,7 @@ Push-Location $repositoryRoot
 
 try {
     Invoke-ModuleTests -ModuleName "backend" -MavenArguments @("test")
-    Invoke-ModuleTests -ModuleName "JavaFX client" -MavenArguments @("-f", "javafx-client\pom.xml", "test")
+    Invoke-ModuleTests -ModuleName "JavaFX client" -MavenArguments @("-f", "javafx-client/pom.xml", "test")
     Write-Host "Repository verification passed."
 }
 catch {

@@ -84,7 +84,7 @@ exit /b 0
         -Name "success" `
         -FailedModule "none" `
         -ExpectedExitCode 0 `
-        -ExpectedCommands @("test", "-f javafx-client\pom.xml test")
+        -ExpectedCommands @("test", "-f javafx-client/pom.xml test")
 
     Invoke-VerificationScenario `
         -Name "backend-failure" `
@@ -96,7 +96,7 @@ exit /b 0
         -Name "client-failure" `
         -FailedModule "client" `
         -ExpectedExitCode 1 `
-        -ExpectedCommands @("test", "-f javafx-client\pom.xml test")
+        -ExpectedCommands @("test", "-f javafx-client/pom.xml test")
 }
 finally {
     Remove-Item Env:VERIFY_TEST_LOG -ErrorAction SilentlyContinue
