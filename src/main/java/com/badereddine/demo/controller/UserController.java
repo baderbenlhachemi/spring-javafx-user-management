@@ -5,7 +5,6 @@ import com.badereddine.demo.exception.InvalidPasswordException;
 import com.badereddine.demo.exception.UserImportException;
 import com.badereddine.demo.exception.UserNotFoundException;
 import com.badereddine.demo.model.ERole;
-import com.badereddine.demo.model.Role;
 import com.badereddine.demo.model.User;
 import com.badereddine.demo.payload.request.LoginRequest;
 import com.badereddine.demo.payload.request.PasswordChangeRequest;
@@ -17,11 +16,10 @@ import com.badereddine.demo.payload.response.MessageResponse;
 import com.badereddine.demo.payload.response.UserListResponse;
 import com.badereddine.demo.payload.response.UserResponse;
 import com.badereddine.demo.payload.response.UserResponseMapper;
-import com.badereddine.demo.security.jwt.JwtUtils;
 import com.badereddine.demo.security.services.UserDetailsImpl;
+import com.badereddine.demo.service.AuthenticationService;
 import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.FakeDataService;
-import com.badereddine.demo.service.RoleService;
 import com.badereddine.demo.service.UserImportService;
 import com.badereddine.demo.service.UserPaginationPolicy;
 import com.badereddine.demo.service.UserService;
@@ -36,8 +34,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -48,15 +44,12 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
 public class UserController {
     private final UserService userService;
-    private final RoleService roleService;
-    private final AuthenticationManager authenticationManager;
-    private final JwtUtils jwtUtils;
+    private final AuthenticationService authenticationService;
     private final FakeDataService fakeDataService;
     private final PasswordEncoder passwordEncoder;
     private final UserResponseMapper userResponseMapper;
@@ -66,9 +59,7 @@ public class UserController {
 
     public UserController(
             UserService userService,
-            RoleService roleService,
-            AuthenticationManager authenticationManager,
-            JwtUtils jwtUtils,
+            AuthenticationService authenticationService,
             FakeDataService fakeDataService,
             PasswordEncoder passwordEncoder,
             UserResponseMapper userResponseMapper,
@@ -77,9 +68,7 @@ public class UserController {
             CsvExportService csvExportService
     ) {
         this.userService = userService;
-        this.roleService = roleService;
-        this.authenticationManager = authenticationManager;
-        this.jwtUtils = jwtUtils;
+        this.authenticationService = authenticationService;
         this.fakeDataService = fakeDataService;
         this.passwordEncoder = passwordEncoder;
         this.userResponseMapper = userResponseMapper;
@@ -124,37 +113,9 @@ public class UserController {
     }
 
     @PostMapping("/auth")
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) throws UserNotFoundException, InvalidPasswordException {
-        // Check if a user with the provided username or email exists
-        User user = userService.findByUsernameOrEmail(loginRequest.getUsername(), loginRequest.getEmail())
-                .orElseThrow(() -> new UserNotFoundException("User not found!"));
-
-        // Authenticate the user
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getUsername(), loginRequest.getPassword()));
-
-        // Set the authentication object in the SecurityContext
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        // Update last login time
-        user.setLastLogin(new Date());
-        userService.save(user);
-
-        // Generate a JWT token
-        String jwt = jwtUtils.generateJwtToken(authentication);
-
-        // Get the roles of the authenticated user
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toList());
-
-        // Return the JWT token and user details
-        return ResponseEntity.ok(new JwtResponse(jwt,
-                userDetails.getId(),
-                userDetails.getUsername(),
-                userDetails.getEmail(),
-                roles));
+    public ResponseEntity<JwtResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest)
+            throws UserNotFoundException, InvalidPasswordException {
+        return ResponseEntity.ok(authenticationService.authenticate(loginRequest));
     }
 
     @GetMapping("/users/me")
@@ -197,44 +158,12 @@ public class UserController {
      * User Registration - Allow self-signup
      */
     @PostMapping("/auth/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-        // Check if username is already taken
-        if (userService.existsByUsername(signUpRequest.getUsername())) {
-            return ResponseEntity.badRequest()
-                    .body(new MessageResponse("Error: Username is already taken!"));
-        }
-
-        // Check if email is already in use
-        if (userService.existsByEmail(signUpRequest.getEmail())) {
-            return ResponseEntity.badRequest()
-                    .body(new MessageResponse("Error: Email is already in use!"));
-        }
-
-        // Get the default USER role
-        Role userRole = roleService.findByName(ERole.ROLE_USER)
-                .orElseGet(() -> roleService.save(new Role(ERole.ROLE_USER)));
-
-        // Create new user
-        User user = new User();
-        user.setUsername(signUpRequest.getUsername());
-        user.setEmail(signUpRequest.getEmail());
-        user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
-        user.setFirstName(signUpRequest.getFirstName());
-        user.setLastName(signUpRequest.getLastName());
-        user.setRole(userRole);
-
-        // Set default values for required fields
-        user.setBirthDate(new Date());
-        user.setCity("Not specified");
-        user.setCountry("Not specified");
-        user.setCompany("Not specified");
-        user.setJobPosition("Not specified");
-        user.setMobile("+212 000000000");
-        user.setAvatar("https://ui-avatars.com/api/?name=" + signUpRequest.getFirstName() + "+" + signUpRequest.getLastName() + "&background=6366F1&color=fff");
-
-        userService.save(user);
-
-        return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+    public ResponseEntity<MessageResponse> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+        AuthenticationService.RegistrationResult result = authenticationService.register(signUpRequest);
+        MessageResponse response = new MessageResponse(result.message());
+        return result.successful()
+                ? ResponseEntity.ok(response)
+                : ResponseEntity.badRequest().body(response);
     }
 
     /**

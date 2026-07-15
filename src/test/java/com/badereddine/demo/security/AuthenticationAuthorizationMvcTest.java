@@ -1,6 +1,7 @@
 package com.badereddine.demo.security;
 
 import com.badereddine.demo.controller.UserController;
+import com.badereddine.demo.config.TimeConfiguration;
 import com.badereddine.demo.model.ERole;
 import com.badereddine.demo.model.Role;
 import com.badereddine.demo.model.User;
@@ -11,6 +12,7 @@ import com.badereddine.demo.security.jwt.JwtUtils;
 import com.badereddine.demo.security.services.UserDetailsImpl;
 import com.badereddine.demo.security.services.UserDetailsServiceImpl;
 import com.badereddine.demo.service.CsvExportService;
+import com.badereddine.demo.service.AuthenticationService;
 import com.badereddine.demo.service.FakeDataService;
 import com.badereddine.demo.service.RoleService;
 import com.badereddine.demo.service.UserImportService;
@@ -54,6 +56,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
         WebSecurityConfig.class,
         AuthEntryPointJwt.class,
+        AuthenticationService.class,
+        TimeConfiguration.class,
         JwtUtils.class,
         UserDetailsServiceImpl.class,
         UserResponseMapper.class,

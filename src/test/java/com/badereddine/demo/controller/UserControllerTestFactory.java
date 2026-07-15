@@ -1,14 +1,12 @@
 package com.badereddine.demo.controller;
 
 import com.badereddine.demo.payload.response.UserResponseMapper;
-import com.badereddine.demo.security.jwt.JwtUtils;
+import com.badereddine.demo.service.AuthenticationService;
 import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.FakeDataService;
-import com.badereddine.demo.service.RoleService;
 import com.badereddine.demo.service.UserImportService;
 import com.badereddine.demo.service.UserPaginationPolicy;
 import com.badereddine.demo.service.UserService;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.mockito.Mockito.mock;
@@ -24,9 +22,7 @@ final class UserControllerTestFactory {
 
     static final class Builder {
         private UserService userService = mock(UserService.class);
-        private RoleService roleService = mock(RoleService.class);
-        private AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
-        private JwtUtils jwtUtils = mock(JwtUtils.class);
+        private AuthenticationService authenticationService = mock(AuthenticationService.class);
         private FakeDataService fakeDataService = new FakeDataService();
         private PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
         private UserResponseMapper userResponseMapper = new UserResponseMapper();
@@ -52,9 +48,7 @@ final class UserControllerTestFactory {
         UserController build() {
             return new UserController(
                     userService,
-                    roleService,
-                    authenticationManager,
-                    jwtUtils,
+                    authenticationService,
                     fakeDataService,
                     passwordEncoder,
                     userResponseMapper,

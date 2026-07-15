@@ -6,8 +6,8 @@ import com.badereddine.demo.security.jwt.AuthEntryPointJwt;
 import com.badereddine.demo.security.jwt.JwtUtils;
 import com.badereddine.demo.security.services.UserDetailsServiceImpl;
 import com.badereddine.demo.service.CsvExportService;
+import com.badereddine.demo.service.AuthenticationService;
 import com.badereddine.demo.service.FakeDataService;
-import com.badereddine.demo.service.RoleService;
 import com.badereddine.demo.service.UserImportService;
 import com.badereddine.demo.service.UserPaginationPolicy;
 import com.badereddine.demo.service.UserService;
@@ -62,7 +62,7 @@ class DisabledPolicySecurityTest {
     private UserService userService;
 
     @MockBean
-    private RoleService roleService;
+    private AuthenticationService authenticationService;
 
     @MockBean
     private FakeDataService fakeDataService;
@@ -83,7 +83,7 @@ class DisabledPolicySecurityTest {
                         .content(VALID_REGISTRATION_JSON))
                 .andExpect(status().isUnauthorized());
 
-        verifyNoInteractions(userService, roleService);
+        verifyNoInteractions(userService, authenticationService);
     }
 
     @Test
@@ -94,7 +94,7 @@ class DisabledPolicySecurityTest {
                         .content(VALID_REGISTRATION_JSON))
                 .andExpect(status().isForbidden());
 
-        verifyNoInteractions(userService, roleService);
+        verifyNoInteractions(userService, authenticationService);
     }
 
     @ParameterizedTest
