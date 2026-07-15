@@ -1,26 +1,19 @@
 package com.badereddine.demo.controller;
 
+import com.badereddine.demo.payload.response.UserListResponse;
+import com.badereddine.demo.service.AdminUserService;
 import com.badereddine.demo.service.UserPaginationPolicy;
-import com.badereddine.demo.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -30,22 +23,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserPaginationControllerTest {
 
     @Mock
-    private UserService userService;
+    private AdminUserService adminUserService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         UserController controller = UserControllerTestFactory.builder()
-                .userService(userService)
+                .adminUserService(adminUserService)
                 .build();
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
     @Test
     void preservesDefaultsAndPaginationResponseFields() throws Exception {
-        when(userService.findAll(any(Pageable.class)))
-                .thenAnswer(invocation -> new PageImpl<>(List.of(), invocation.getArgument(0), 0));
+        when(adminUserService.getAllUsers(0, 10, "username", "asc", null))
+                .thenReturn(new UserListResponse(java.util.List.of(), 0, 0, 0, 10));
 
         mockMvc.perform(get("/api/users"))
                 .andExpect(status().isOk())
@@ -54,19 +47,24 @@ class UserPaginationControllerTest {
                 .andExpect(jsonPath("$.totalPages").value(0))
                 .andExpect(jsonPath("$.size").value(10));
 
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        verify(userService).findAll(pageableCaptor.capture());
-        Pageable pageable = pageableCaptor.getValue();
-        assertThat(pageable.getPageNumber()).isZero();
-        assertThat(pageable.getPageSize()).isEqualTo(10);
-        assertThat(pageable.getSort().getOrderFor("username")).isNotNull();
-        assertThat(pageable.getSort().getOrderFor("username").isAscending()).isTrue();
+        verify(adminUserService).getAllUsers(0, 10, "username", "asc", null);
     }
 
     @Test
     void acceptsMaximumPageSizeAndDescendingClientSort() throws Exception {
-        when(userService.findAll(any(Pageable.class)))
-                .thenAnswer(invocation -> new PageImpl<>(List.of(), invocation.getArgument(0), 0));
+        when(adminUserService.getAllUsers(
+                2,
+                UserPaginationPolicy.MAX_PAGE_SIZE,
+                "lastLogin",
+                "desc",
+                null
+        )).thenReturn(new UserListResponse(
+                java.util.List.of(),
+                2,
+                0,
+                0,
+                UserPaginationPolicy.MAX_PAGE_SIZE
+        ));
 
         mockMvc.perform(get("/api/users")
                         .param("page", "2")
@@ -75,20 +73,20 @@ class UserPaginationControllerTest {
                         .param("sortDir", "desc"))
                 .andExpect(status().isOk());
 
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        verify(userService).findAll(pageableCaptor.capture());
-        Pageable pageable = pageableCaptor.getValue();
-        assertThat(pageable.getPageNumber()).isEqualTo(2);
-        assertThat(pageable.getPageSize()).isEqualTo(UserPaginationPolicy.MAX_PAGE_SIZE);
-        assertThat(pageable.getSort().getOrderFor("lastLogin")).isNotNull();
-        assertThat(pageable.getSort().getOrderFor("lastLogin").isDescending()).isTrue();
+        verify(adminUserService).getAllUsers(
+                2,
+                UserPaginationPolicy.MAX_PAGE_SIZE,
+                "lastLogin",
+                "desc",
+                null
+        );
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"username", "email", "firstName", "company", "enabled", "lastLogin"})
     void acceptsEveryClientSortField(String sortBy) throws Exception {
-        when(userService.findAll(any(Pageable.class)))
-                .thenAnswer(invocation -> new PageImpl<>(List.of(), invocation.getArgument(0), 0));
+        when(adminUserService.getAllUsers(0, 10, sortBy, "asc", null))
+                .thenReturn(new UserListResponse(java.util.List.of(), 0, 0, 0, 10));
 
         mockMvc.perform(get("/api/users").param("sortBy", sortBy))
                 .andExpect(status().isOk());
@@ -97,38 +95,50 @@ class UserPaginationControllerTest {
     @ParameterizedTest
     @ValueSource(ints = {-1, -10})
     void rejectsInvalidPagesWithStableResponse(int page) throws Exception {
+        when(adminUserService.getAllUsers(page, 10, "username", "asc", null))
+                .thenThrow(new IllegalArgumentException(UserPaginationPolicy.INVALID_PAGE_MESSAGE));
+
         mockMvc.perform(get("/api/users").param("page", Integer.toString(page)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(UserPaginationPolicy.INVALID_PAGE_MESSAGE));
 
-        verifyNoInteractions(userService);
+        verify(adminUserService).getAllUsers(page, 10, "username", "asc", null);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {-1, 0, 101})
     void rejectsInvalidPageSizesWithStableResponse(int size) throws Exception {
+        when(adminUserService.getAllUsers(0, size, "username", "asc", null))
+                .thenThrow(new IllegalArgumentException(UserPaginationPolicy.INVALID_SIZE_MESSAGE));
+
         mockMvc.perform(get("/api/users").param("size", Integer.toString(size)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(UserPaginationPolicy.INVALID_SIZE_MESSAGE));
 
-        verifyNoInteractions(userService);
+        verify(adminUserService).getAllUsers(0, size, "username", "asc", null);
     }
 
     @Test
     void rejectsNonAllowListedSortFieldWithStableResponse() throws Exception {
+        when(adminUserService.getAllUsers(0, 10, "password", "asc", null))
+                .thenThrow(new IllegalArgumentException(UserPaginationPolicy.INVALID_SORT_FIELD_MESSAGE));
+
         mockMvc.perform(get("/api/users").param("sortBy", "password"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(UserPaginationPolicy.INVALID_SORT_FIELD_MESSAGE));
 
-        verifyNoInteractions(userService);
+        verify(adminUserService).getAllUsers(0, 10, "password", "asc", null);
     }
 
     @Test
     void rejectsInvalidSortDirectionWithStableResponse() throws Exception {
+        when(adminUserService.getAllUsers(0, 10, "username", "sideways", null))
+                .thenThrow(new IllegalArgumentException(UserPaginationPolicy.INVALID_SORT_DIRECTION_MESSAGE));
+
         mockMvc.perform(get("/api/users").param("sortDir", "sideways"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(UserPaginationPolicy.INVALID_SORT_DIRECTION_MESSAGE));
 
-        verifyNoInteractions(userService);
+        verify(adminUserService).getAllUsers(0, 10, "username", "sideways", null);
     }
 }

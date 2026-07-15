@@ -5,13 +5,14 @@ import com.badereddine.demo.payload.response.UserResponseMapper;
 import com.badereddine.demo.security.jwt.AuthEntryPointJwt;
 import com.badereddine.demo.security.jwt.JwtUtils;
 import com.badereddine.demo.security.services.UserDetailsServiceImpl;
+import com.badereddine.demo.service.AdminUserService;
 import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.AuthenticationService;
 import com.badereddine.demo.service.FakeDataService;
 import com.badereddine.demo.service.ProfileService;
 import com.badereddine.demo.service.UserImportService;
-import com.badereddine.demo.service.UserPaginationPolicy;
 import com.badereddine.demo.service.UserService;
+import com.badereddine.demo.service.UserStatisticsService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -40,7 +41,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         WebSecurityConfig.class,
         AuthEntryPointJwt.class,
         UserResponseMapper.class,
-        UserPaginationPolicy.class,
         CsvExportService.class
 })
 @ActiveProfiles("test")
@@ -70,6 +70,12 @@ class DisabledPolicySecurityTest {
 
     @MockBean
     private ProfileService profileService;
+
+    @MockBean
+    private AdminUserService adminUserService;
+
+    @MockBean
+    private UserStatisticsService userStatisticsService;
 
     @MockBean
     private UserImportService userImportService;

@@ -1,10 +1,8 @@
 package com.badereddine.demo.controller;
 
-import com.badereddine.demo.exception.AccessDeniedException;
 import com.badereddine.demo.exception.InvalidPasswordException;
 import com.badereddine.demo.exception.UserImportException;
 import com.badereddine.demo.exception.UserNotFoundException;
-import com.badereddine.demo.model.ERole;
 import com.badereddine.demo.model.User;
 import com.badereddine.demo.payload.request.LoginRequest;
 import com.badereddine.demo.payload.request.PasswordChangeRequest;
@@ -13,21 +11,18 @@ import com.badereddine.demo.payload.request.SignupRequest;
 import com.badereddine.demo.payload.response.GeneratedUserResponse;
 import com.badereddine.demo.payload.response.JwtResponse;
 import com.badereddine.demo.payload.response.MessageResponse;
-import com.badereddine.demo.payload.response.UserListResponse;
 import com.badereddine.demo.payload.response.UserResponse;
-import com.badereddine.demo.payload.response.UserResponseMapper;
-import com.badereddine.demo.security.services.UserDetailsImpl;
+import com.badereddine.demo.service.AdminUserService;
 import com.badereddine.demo.service.AuthenticationService;
 import com.badereddine.demo.service.CsvExportService;
 import com.badereddine.demo.service.FakeDataService;
 import com.badereddine.demo.service.ProfileService;
 import com.badereddine.demo.service.UserImportService;
-import com.badereddine.demo.service.UserPaginationPolicy;
 import com.badereddine.demo.service.UserService;
+import com.badereddine.demo.service.UserStatisticsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
@@ -35,9 +30,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -51,29 +43,29 @@ public class UserController {
     private final UserService userService;
     private final AuthenticationService authenticationService;
     private final ProfileService profileService;
+    private final AdminUserService adminUserService;
+    private final UserStatisticsService userStatisticsService;
     private final FakeDataService fakeDataService;
-    private final UserResponseMapper userResponseMapper;
     private final UserImportService userImportService;
-    private final UserPaginationPolicy userPaginationPolicy;
     private final CsvExportService csvExportService;
 
     public UserController(
             UserService userService,
             AuthenticationService authenticationService,
             ProfileService profileService,
+            AdminUserService adminUserService,
+            UserStatisticsService userStatisticsService,
             FakeDataService fakeDataService,
-            UserResponseMapper userResponseMapper,
             UserImportService userImportService,
-            UserPaginationPolicy userPaginationPolicy,
             CsvExportService csvExportService
     ) {
         this.userService = userService;
         this.authenticationService = authenticationService;
         this.profileService = profileService;
+        this.adminUserService = adminUserService;
+        this.userStatisticsService = userStatisticsService;
         this.fakeDataService = fakeDataService;
-        this.userResponseMapper = userResponseMapper;
         this.userImportService = userImportService;
-        this.userPaginationPolicy = userPaginationPolicy;
         this.csvExportService = csvExportService;
     }
 
@@ -126,20 +118,8 @@ public class UserController {
 
     @GetMapping("/users/{username}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getUserProfile(@PathVariable String username) throws UserNotFoundException, AccessDeniedException { Authentication authentication = SecurityContextHolder.getContext().getAuthentication(); UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        // Find the user in the database
-        User user = userService.findByUsername(username)
-                .orElseThrow(() -> new UserNotFoundException("User not found!"));
-
-        // Check if the authenticated user is allowed to access this profile
-        if (!userDetails.getUsername().equals(username) && !userDetails.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"))) {
-            throw new AccessDeniedException("You are not allowed to access this profile!");
-        }
-
-        // Return the user details
-        UserDetailsImpl userDetailsToReturn = UserDetailsImpl.build(user);
-
-        return ResponseEntity.ok(userDetailsToReturn);
+    public ResponseEntity<?> getUserProfile(@PathVariable String username) {
+        return ResponseEntity.ok(adminUserService.getUserProfile(username));
     }
 
     // ==================== NEW ENDPOINTS ====================
@@ -190,33 +170,12 @@ public class UserController {
             @RequestParam(defaultValue = "asc") String sortDir,
             @RequestParam(required = false) String search
     ) {
-        Pageable pageable;
         try {
-            pageable = userPaginationPolicy.create(page, size, sortBy, sortDir);
+            return ResponseEntity.ok(adminUserService.getAllUsers(page, size, sortBy, sortDir, search));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse(exception.getMessage()));
         }
-
-        Page<User> usersPage;
-
-        if (search != null && !search.trim().isEmpty()) {
-            usersPage = userService.searchUsers(search.trim(), pageable);
-        } else {
-            usersPage = userService.findAll(pageable);
-        }
-
-        List<UserResponse> users = usersPage.stream()
-                .map(userResponseMapper::toResponse)
-                .toList();
-
-        return ResponseEntity.ok(new UserListResponse(
-                users,
-                usersPage.getNumber(),
-                usersPage.getTotalElements(),
-                usersPage.getTotalPages(),
-                usersPage.getSize()
-        ));
     }
 
     /**
@@ -225,9 +184,7 @@ public class UserController {
     @GetMapping("/users/id/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) throws UserNotFoundException {
-        User user = userService.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-        return ResponseEntity.ok(userResponseMapper.toResponse(user));
+        return ResponseEntity.ok(adminUserService.getUserById(id));
     }
 
     /**
@@ -236,8 +193,8 @@ public class UserController {
     @DeleteMapping("/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) throws UserNotFoundException {
-        User user = userService.deleteUser(id);
-        return ResponseEntity.ok(new MessageResponse("User '" + user.getUsername() + "' deleted successfully"));
+        String username = adminUserService.deleteUser(id);
+        return ResponseEntity.ok(new MessageResponse("User '" + username + "' deleted successfully"));
     }
 
     /**
@@ -246,31 +203,10 @@ public class UserController {
     @PutMapping("/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody ProfileUpdateRequest request) throws UserNotFoundException {
-        User user = userService.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-
-        // Check if new email is already in use by another user
-        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
-            if (userService.existsByEmail(request.getEmail())) {
-                return ResponseEntity.badRequest()
-                        .body(new MessageResponse("Error: Email is already in use!"));
-            }
-            user.setEmail(request.getEmail());
-        }
-
-        // Update fields if provided
-        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
-        if (request.getLastName() != null) user.setLastName(request.getLastName());
-        if (request.getBirthDate() != null) user.setBirthDate(request.getBirthDate());
-        if (request.getCity() != null) user.setCity(request.getCity());
-        if (request.getCountry() != null) user.setCountry(request.getCountry());
-        if (request.getCompany() != null) user.setCompany(request.getCompany());
-        if (request.getJobPosition() != null) user.setJobPosition(request.getJobPosition());
-        if (request.getMobile() != null) user.setMobile(request.getMobile());
-        if (request.getAvatar() != null) user.setAvatar(request.getAvatar());
-
-        userService.save(user);
-        return ResponseEntity.ok(userResponseMapper.toResponse(user));
+        AdminUserService.UserUpdateResult result = adminUserService.updateUser(id, request);
+        return result.successful()
+                ? ResponseEntity.ok(result.user())
+                : ResponseEntity.badRequest().body(new MessageResponse(result.message()));
     }
 
     /**
@@ -279,20 +215,13 @@ public class UserController {
     @PatchMapping("/users/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> changeUserRole(@PathVariable Long id, @RequestParam String role) throws UserNotFoundException {
-        User user = userService.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-
-        ERole newRole;
         try {
-            newRole = ERole.valueOf(role.toUpperCase());
-        } catch (IllegalArgumentException e) {
+            String newRole = adminUserService.changeUserRole(id, role).name();
+            return ResponseEntity.ok(new MessageResponse("User role updated to " + newRole));
+        } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest()
-                    .body(new MessageResponse("Error: Invalid role. Use ROLE_USER or ROLE_ADMIN"));
+                    .body(new MessageResponse(exception.getMessage()));
         }
-
-        userService.changeRole(id, newRole);
-
-        return ResponseEntity.ok(new MessageResponse("User role updated to " + newRole.name()));
     }
 
     /**
@@ -301,10 +230,9 @@ public class UserController {
     @PatchMapping("/users/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> toggleUserStatus(@PathVariable Long id, @RequestParam boolean enabled) throws UserNotFoundException {
-        User user = userService.setEnabled(id, enabled);
-
+        String username = adminUserService.setUserEnabled(id, enabled);
         String status = enabled ? "enabled" : "disabled";
-        return ResponseEntity.ok(new MessageResponse("User '" + user.getUsername() + "' has been " + status));
+        return ResponseEntity.ok(new MessageResponse("User '" + username + "' has been " + status));
     }
 
     /**
@@ -313,11 +241,12 @@ public class UserController {
     @GetMapping("/stats/users")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getUserStats() {
+        UserStatisticsService.UserStatistics userStatistics = userStatisticsService.getUserStatistics();
         Map<String, Object> stats = new HashMap<>();
-        stats.put("totalUsers", userService.count());
-        stats.put("totalAdmins", userService.countByRole(ERole.ROLE_ADMIN));
-        stats.put("totalRegularUsers", userService.countByRole(ERole.ROLE_USER));
-        stats.put("newUsersToday", userService.countNewUsersToday());
+        stats.put("totalUsers", userStatistics.totalUsers());
+        stats.put("totalAdmins", userStatistics.totalAdmins());
+        stats.put("totalRegularUsers", userStatistics.totalRegularUsers());
+        stats.put("newUsersToday", userStatistics.newUsersToday());
 
         return ResponseEntity.ok(stats);
     }

@@ -6,17 +6,15 @@ import com.badereddine.demo.model.User;
 import com.badereddine.demo.payload.request.ProfileUpdateRequest;
 import com.badereddine.demo.payload.response.UserResponse;
 import com.badereddine.demo.payload.response.UserResponseMapper;
+import com.badereddine.demo.payload.response.UserListResponse;
+import com.badereddine.demo.service.AdminUserService;
 import com.badereddine.demo.service.ProfileService;
-import com.badereddine.demo.service.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -25,7 +23,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserControllerResponseTest {
 
     @Mock
-    private UserService userService;
+    private AdminUserService adminUserService;
 
     @Mock
     private ProfileService profileService;
@@ -51,7 +48,7 @@ class UserControllerResponseTest {
     @BeforeEach
     void setUp() {
         controller = UserControllerTestFactory.builder()
-                .userService(userService)
+                .adminUserService(adminUserService)
                 .profileService(profileService)
                 .build();
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
@@ -65,7 +62,7 @@ class UserControllerResponseTest {
 
     @Test
     void returnsSingleUserDtoWithCompatibleFieldsAndNoPersistenceOrPasswordFields() throws Exception {
-        when(userService.findById(7L)).thenReturn(Optional.of(user));
+        when(adminUserService.getUserById(7L)).thenReturn(new UserResponseMapper().toResponse(user));
 
         mockMvc.perform(get("/api/users/id/7"))
                 .andExpect(status().isOk())
@@ -92,9 +89,14 @@ class UserControllerResponseTest {
 
     @Test
     void returnsPaginatedUserDtosWithCompatiblePaginationFields() throws Exception {
-        PageRequest request = PageRequest.of(1, 2);
-        when(userService.findAll(any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(user), request, 5));
+        when(adminUserService.getAllUsers(1, 2, "username", "asc", null))
+                .thenReturn(new UserListResponse(
+                        List.of(new UserResponseMapper().toResponse(user)),
+                        1,
+                        5,
+                        3,
+                        2
+                ));
 
         mockMvc.perform(get("/api/users")
                         .param("page", "1")
@@ -116,7 +118,8 @@ class UserControllerResponseTest {
         when(profileService.getCurrentProfile()).thenReturn(userResponse);
         when(profileService.updateProfile(any(ProfileUpdateRequest.class)))
                 .thenReturn(new ProfileService.ProfileUpdateResult(true, userResponse, null));
-        when(userService.findById(7L)).thenReturn(Optional.of(user));
+        when(adminUserService.updateUser(any(Long.class), any(ProfileUpdateRequest.class)))
+                .thenReturn(new AdminUserService.UserUpdateResult(true, userResponse, null));
 
         ResponseEntity<UserResponse> profileResponse = controller.getMyProfile();
         ResponseEntity<?> profileUpdateResponse = controller.updateProfile(new ProfileUpdateRequest());
@@ -127,7 +130,7 @@ class UserControllerResponseTest {
         assertThat(adminUpdateResponse.getBody()).isExactlyInstanceOf(UserResponse.class);
         verify(profileService).getCurrentProfile();
         verify(profileService).updateProfile(any(ProfileUpdateRequest.class));
-        verify(userService).save(user);
+        verify(adminUserService).updateUser(any(Long.class), any(ProfileUpdateRequest.class));
     }
 
     private User representativeUser() {
