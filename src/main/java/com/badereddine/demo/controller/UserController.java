@@ -356,10 +356,7 @@ public class UserController {
     @DeleteMapping("/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) throws UserNotFoundException {
-        User user = userService.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-
-        userService.deleteById(id);
+        User user = userService.deleteUser(id);
         return ResponseEntity.ok(new MessageResponse("User '" + user.getUsername() + "' deleted successfully"));
     }
 
@@ -413,11 +410,7 @@ public class UserController {
                     .body(new MessageResponse("Error: Invalid role. Use ROLE_USER or ROLE_ADMIN"));
         }
 
-        Role roleEntity = roleService.findByName(newRole)
-                .orElseGet(() -> roleService.save(new Role(newRole)));
-
-        user.setRole(roleEntity);
-        userService.save(user);
+        userService.changeRole(id, newRole);
 
         return ResponseEntity.ok(new MessageResponse("User role updated to " + newRole.name()));
     }
@@ -428,11 +421,7 @@ public class UserController {
     @PatchMapping("/users/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> toggleUserStatus(@PathVariable Long id, @RequestParam boolean enabled) throws UserNotFoundException {
-        User user = userService.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-
-        user.setEnabled(enabled);
-        userService.save(user);
+        User user = userService.setEnabled(id, enabled);
 
         String status = enabled ? "enabled" : "disabled";
         return ResponseEntity.ok(new MessageResponse("User '" + user.getUsername() + "' has been " + status));

@@ -43,6 +43,17 @@ public class UserRestExceptionHandler {
     }
 
     @ExceptionHandler
+    public ResponseEntity<UserErrorResponse> handleException(LastActiveAdminException exc) {
+        UserErrorResponse error = new UserErrorResponse();
+
+        error.setStatus(HttpStatus.CONFLICT.value());
+        error.setMessage(exc.getMessage());
+        error.setTimeStamp(System.currentTimeMillis());
+
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler
     public ResponseEntity<UserErrorResponse> handleException(IOException exc) {
         UserErrorResponse error = new UserErrorResponse();
 

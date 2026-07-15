@@ -1,24 +1,31 @@
 package com.badereddine.demo.service;
 
+import com.badereddine.demo.exception.LastActiveAdminException;
+import com.badereddine.demo.exception.UserNotFoundException;
 import com.badereddine.demo.model.ERole;
+import com.badereddine.demo.model.Role;
 import com.badereddine.demo.model.User;
 import com.badereddine.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Calendar;
+import java.util.List;
 import java.util.Optional;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final RoleService roleService;
 
     @Autowired
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, RoleService roleService) {
         this.userRepository = userRepository;
+        this.roleService = roleService;
     }
 
     public Optional<User> findByUsername(String username) {
@@ -45,8 +52,34 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public void deleteById(Long id) {
-        userRepository.deleteById(id);
+    @Transactional
+    public User deleteUser(Long id) {
+        List<User> activeAdmins = lockActiveAdmins();
+        User user = requireUser(id);
+        rejectLastActiveAdminRemoval(activeAdmins, user, true);
+        userRepository.delete(user);
+        return user;
+    }
+
+    @Transactional
+    public User changeRole(Long id, ERole newRole) {
+        List<User> activeAdmins = lockActiveAdmins();
+        User user = requireUser(id);
+        rejectLastActiveAdminRemoval(activeAdmins, user, newRole != ERole.ROLE_ADMIN);
+
+        Role role = roleService.findByName(newRole)
+                .orElseGet(() -> roleService.save(new Role(newRole)));
+        user.setRole(role);
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public User setEnabled(Long id, boolean enabled) {
+        List<User> activeAdmins = lockActiveAdmins();
+        User user = requireUser(id);
+        rejectLastActiveAdminRemoval(activeAdmins, user, !enabled);
+        user.setEnabled(enabled);
+        return userRepository.save(user);
     }
 
     public Page<User> findAll(Pageable pageable) {
@@ -72,5 +105,22 @@ public class UserService {
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
         return userRepository.countNewUsersSince(cal.getTime());
+    }
+
+    private List<User> lockActiveAdmins() {
+        return userRepository.findActiveByRoleNameForUpdate(ERole.ROLE_ADMIN);
+    }
+
+    private User requireUser(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+    }
+
+    private void rejectLastActiveAdminRemoval(List<User> activeAdmins, User target, boolean removesActiveAccess) {
+        boolean targetIsActiveAdmin = activeAdmins.stream()
+                .anyMatch(admin -> admin.getId().equals(target.getId()));
+        if (removesActiveAccess && targetIsActiveAdmin && activeAdmins.size() == 1) {
+            throw new LastActiveAdminException();
+        }
     }
 }
